@@ -19,13 +19,13 @@ echo "════════════════════════�
 echo "  Preparing viral-only reference files"
 echo "═══════════════════════════════════════════════════════════"
 
-# --- VEEV INH-9813 ---
-VEEV_SRC="$SRC_REFS/VEEV_INH/virus.fa"
-VEEV_DST="$DST_REFS/VEEV_INH"
-VEEV_GTF_SRC="$SRC_REFS/VEEV_INH/virus.gtf"
+# --- VEEV reference isolate ---
+VEEV_SRC="$SRC_REFS/VEEV_ref/virus.fa"
+VEEV_DST="$DST_REFS/VEEV_ref"
+VEEV_GTF_SRC="$SRC_REFS/VEEV_ref/virus.gtf"
 
 echo ""
-echo "── VEEV INH-9813 ──"
+echo "── VEEV reference isolate ──"
 mkdir -p "$VEEV_DST"
 
 # Copy viral-only FASTA (it's already viral-only)

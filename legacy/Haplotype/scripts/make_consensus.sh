@@ -10,7 +10,7 @@
 # Usage:
 #   cd Variant_discovery_pipeline
 #   ../Haplotype/scripts/make_consensus.sh            # all samples
-#   ../Haplotype/scripts/make_consensus.sh INH_3_DPI_R1_A3  # one sample
+#   ../Haplotype/scripts/make_consensus.sh SMPL_3_DPI_R1_A3  # one sample
 # ============================================================
 
 # ── Settings ────────────────────────────────────────────────
@@ -24,7 +24,7 @@ PIPELINE_DIR="$(cd "$SCRIPT_DIR/../../Variant_discovery_pipeline" && pwd)"
 OUTDIR="$(cd "$SCRIPT_DIR/.." && pwd)/consensus"
 
 REF="$PIPELINE_DIR/Input/Reference/viral_only.fasta"   # viral contig only
-VIRAL_CONTIG="VEEV_INH"                                # contig name in ref
+VIRAL_CONTIG="VEEV_ref"                                # contig name in ref
 LOFREQ_DIR="$PIPELINE_DIR/LoFreq"
 BAM_DIR="$PIPELINE_DIR/Input/BAMs"
 

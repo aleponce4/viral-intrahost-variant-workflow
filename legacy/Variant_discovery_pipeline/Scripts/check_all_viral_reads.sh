@@ -2,7 +2,8 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate lofreq-env
 
-BAM_DIR="/mnt/d/RNAseq/Alphavirus/045_048_nftcore/variant_analysis/input/mouse_veev/BAMs"
+# Point BAM_DIR at your own indexed BAM directory (override via environment).
+BAM_DIR="${BAM_DIR:-./input/${DATASET:-mouse_veev}/BAMs}"
 CONTIG="KP282671.1"
 
 echo "Sample | Viral reads | Mean depth"

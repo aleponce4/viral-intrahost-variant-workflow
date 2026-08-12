@@ -226,6 +226,28 @@ bash tests/data/generate_fixtures.sh
 | `Scripts/run_viloca.sh` | `modules/local/viloca` |
 | `Scripts/Helpers/*.py`, `*.R` | Ported to executable `bin/` scripts with strict argparse CLIs |
 
+The original Bash pipeline is preserved under [`legacy/`](legacy) for provenance.
+[`docs/migration.md`](docs/migration.md) explains what it did, why it was moved to Nextflow
+DSL2, and what changed structurally.
+
+---
+
+## Third-party Components
+
+This repository is MIT-licensed, but it **vendors** one component that is not:
+`assets/snpgenie/snpgenie.pl` is [SNPGenie](https://github.com/chasewnelson/snpgenie) by
+Chase W. Nelson, retained under the **GNU GPL v3** under its own terms.
+
+See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the full notice, the pinned upstream
+commit, and redistribution obligations. All other analysis tools are pulled at runtime as pinned
+containers and are not redistributed here.
+
+If you use the `SELECTION` subworkflow, please cite SNPGenie in addition to this pipeline:
+
+> Nelson CW, Moncla LH, Hughes AL (2015). SNPGenie: estimating evolutionary parameters to detect
+> natural selection using pooled next-generation sequencing data. *Bioinformatics*
+> **31**(22):3709–3711. doi:[10.1093/bioinformatics/btv449](https://doi.org/10.1093/bioinformatics/btv449)
+
 ---
 
 ### Contact & Maintainer

@@ -10,7 +10,7 @@
 # Usage:
 #   cd Variant_discovery_pipeline
 #   ../Haplotype/scripts/run_viloca.sh                       # all samples
-#   ../Haplotype/scripts/run_viloca.sh INH_3_DPI_R1_A3       # one sample
+#   ../Haplotype/scripts/run_viloca.sh SMPL_3_DPI_R1_A3       # one sample
 # ============================================================
 
 # ── Settings ────────────────────────────────────────────────
@@ -103,7 +103,7 @@ for SAMPLE in "${SAMPLES[@]}"; do
     echo "  1) Filtering to primary alignments (single-contig BAM) ..."
 
     # Build a minimal header with only the viral contig
-    VIRAL_CONTIG="VEEV_INH"
+    VIRAL_CONTIG="VEEV_ref"
     {
         samtools view -H "$SRC_BAM" | grep "^@HD"
         samtools view -H "$SRC_BAM" | grep "^@SQ" | grep "SN:${VIRAL_CONTIG}"

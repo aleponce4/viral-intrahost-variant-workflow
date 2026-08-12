@@ -3,11 +3,12 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate lofreq-env
 
-BAM_DIR="/mnt/d/RNAseq/Alphavirus/045_048_nftcore/variant_analysis/input/mouse_veev/BAMs"
+# Point BAM_DIR at your own indexed BAM directory (override via environment).
+BAM_DIR="${BAM_DIR:-./input/${DATASET:-mouse_veev}/BAMs}"
 CONTIG="KP282671.1"
 
 # Check depth on a few high-viral-load samples
-for s in s375 s373 s176 s142; do
+for s in ${SAMPLES:-sampleA sampleB}; do
     bam="$BAM_DIR/${s}.bam"
     echo "=== $s ==="
     samtools depth -a -r "$CONTIG" "$bam" | awk '

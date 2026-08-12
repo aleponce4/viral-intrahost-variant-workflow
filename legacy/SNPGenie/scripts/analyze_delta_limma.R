@@ -28,7 +28,7 @@ parse_args <- function(args) {
 }
 
 extract_dpi <- function(sample_name) {
-  m <- regexec("INH_([0-9]+)_DPI_", sample_name)
+  m <- regexec("SMPL_([0-9]+)_DPI_", sample_name)
   reg <- regmatches(sample_name, m)
   if (length(reg[[1]]) >= 2) {
     return(paste0("dpi", reg[[1]][2]))

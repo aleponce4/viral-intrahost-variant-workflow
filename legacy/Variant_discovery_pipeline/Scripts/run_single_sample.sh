@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run full pipeline on a single sample
-# Usage: ./Scripts/run_single_sample.sh INH_3_DPI_R1_A3
+# Usage: ./Scripts/run_single_sample.sh SMPL_3_DPI_R1_A3
 
 source config.sh
 eval "$(conda shell.bash hook)"
@@ -9,14 +9,14 @@ conda activate ivar_env 2>/dev/null || conda activate lofreq-env 2>/dev/null
 
 if [ -z "$1" ]; then
     echo "Usage: ./Scripts/run_single_sample.sh <sample_name>"
-    echo "Example: ./Scripts/run_single_sample.sh INH_3_DPI_R1_A3"
+    echo "Example: ./Scripts/run_single_sample.sh SMPL_3_DPI_R1_A3"
     exit 1
 fi
 
 SAMPLE="$1"
 BAM="Input/BAMs/${SAMPLE}.bam"
 REFERENCE="Input/Reference/inh.fasta"
-ANNOTATION="Input/Reference/VEEV_INH_fromGenbank.gff3"
+ANNOTATION="Input/Reference/VEEV_ref_fromGenbank.gff3"
 
 if [ ! -f "$BAM" ]; then
     echo "ERROR: BAM file not found: $BAM"

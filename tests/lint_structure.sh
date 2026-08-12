@@ -5,7 +5,9 @@ echo "Running directory structure lint checks..."
 
 MANDATORY_FILES=(
     "ARCHITECTURE.md"
-    "docs/history/AGENT.md"
+    "docs/migration.md"
+    "THIRD_PARTY_NOTICES.md"
+    "LICENSE"
     "CHANGELOG.md"
     "main.nf"
     "nextflow.config"

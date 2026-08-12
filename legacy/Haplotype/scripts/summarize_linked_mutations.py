@@ -73,7 +73,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--sample-pattern",
-        default=r"^INH_(?P<dpi>\d+)_DPI_(?P<replicate>R\d+)_.*$",
+        default=r"^SMPL_(?P<dpi>\d+)_DPI_(?P<replicate>R\d+)_.*$",
         help=(
             "Regex used to identify sample directories. Must include named groups "
             "'dpi' and 'replicate'."

@@ -16,7 +16,7 @@ except ImportError as exc:  # pragma: no cover
     ) from exc
 
 
-DPI_PATTERN = re.compile(r"INH_(\d+)_DPI_")
+DPI_PATTERN = re.compile(r"SMPL_(\d+)_DPI_")
 
 
 def parse_args() -> argparse.Namespace:

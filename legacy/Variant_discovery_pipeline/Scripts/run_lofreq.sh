@@ -11,7 +11,7 @@
 #
 # Usage:
 #   DATASET=mouse_veev bash run_lofreq.sh
-#   DATASET=mouse_veev bash run_lofreq.sh s101   # single sample
+#   DATASET=mouse_veev bash run_lofreq.sh sampleA   # single sample
 # =====================================================================
 set -uo pipefail
 # Note: no 'set -e' — background jobs may return non-zero, which would kill the script

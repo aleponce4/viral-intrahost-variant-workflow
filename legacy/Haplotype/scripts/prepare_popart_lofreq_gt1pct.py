@@ -58,7 +58,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--sample-regex",
-        default=r"^INH_\d+_DPI_.*$",
+        default=r"^SMPL_\d+_DPI_.*$",
         help="Regex to select sample IDs.",
     )
     parser.add_argument(
@@ -273,14 +273,14 @@ def infer_sample_id(consensus_path: Path) -> str:
 
 
 def infer_dpi_label(sample_id: str) -> str:
-    match = re.match(r"^INH_(\d+)_DPI_", sample_id)
+    match = re.match(r"^SMPL_(\d+)_DPI_", sample_id)
     if match:
         return f"DPI{match.group(1)}"
     return "NA"
 
 
 def infer_dpi_day(sample_id: str) -> str:
-    match = re.match(r"^INH_(\d+)_DPI_", sample_id)
+    match = re.match(r"^SMPL_(\d+)_DPI_", sample_id)
     if match:
         return match.group(1)
     return "NA"

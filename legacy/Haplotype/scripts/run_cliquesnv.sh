@@ -12,7 +12,7 @@
 # Usage:
 #   cd Variant_discovery_pipeline
 #   ../Haplotype/scripts/run_cliquesnv.sh                       # all samples
-#   ../Haplotype/scripts/run_cliquesnv.sh INH_3_DPI_R1_A3       # one sample
+#   ../Haplotype/scripts/run_cliquesnv.sh SMPL_3_DPI_R1_A3       # one sample
 # ============================================================
 
 # ── Settings ────────────────────────────────────────────────
@@ -54,7 +54,7 @@ CLIQUESNV_T="${CLIQUESNV_T:-10}"
 CLIQUESNV_MIN_MAPQ="${CLIQUESNV_MIN_MAPQ:-30}"
 CLIQUESNV_MAX_NM="${CLIQUESNV_MAX_NM:-5}"
 CLIQUESNV_ENV="${CLIQUESNV_ENV:-env_cliquesnv}"
-VIRAL_CONTIG="${VIRAL_CONTIG:-VEEV_INH}"
+VIRAL_CONTIG="${VIRAL_CONTIG:-VEEV_ref}"
 # ────────────────────────────────────────────────────────────
 
 # ── Paths ───────────────────────────────────────────────────

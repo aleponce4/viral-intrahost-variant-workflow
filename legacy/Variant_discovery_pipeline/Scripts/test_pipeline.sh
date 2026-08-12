@@ -12,10 +12,10 @@ eval "$(conda shell.bash hook)"
 conda activate ivar_env 2>/dev/null || conda activate lofreq-env 2>/dev/null
 
 # Config
-SAMPLE="INH_3_DPI_R1_A3"
+SAMPLE="SMPL_3_DPI_R1_A3"
 SAMPLE_TEST="${SAMPLE}_subsample"  # Append suffix to avoid overwriting production
 REFERENCE="Input/Reference/inh.fasta"
-ANNOTATION="Input/Reference/VEEV_INH_fromGenbank.gff3"
+ANNOTATION="Input/Reference/VEEV_ref_fromGenbank.gff3"
 PRIMERS="Input/Primers/*.bed"
 
 # Find input BAM

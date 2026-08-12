@@ -3,8 +3,9 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate lofreq-env
 
-VARIANT_ROOT="/mnt/d/RNAseq/Alphavirus/045_048_nftcore/variant_analysis"
-BAM="$VARIANT_ROOT/input/mouse_veev/BAMs/s314.bam"
+# Point VARIANT_ROOT at your own variant_analysis workspace (override via environment).
+VARIANT_ROOT="${VARIANT_ROOT:-.}"
+BAM="${BAM:-$VARIANT_ROOT/input/${DATASET:-mouse_veev}/BAMs/sampleA.bam}"
 CONTIG="KP282671.1"
 
 echo "Checking coverage on: $(basename $BAM)"

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Iterable
 from dataclasses import dataclass
 
-SAMPLE_PATTERN = re.compile(r"^INH_(?P<dpi>\d+)_DPI_(?P<replicate>R\d+)_.*$")
+SAMPLE_PATTERN = re.compile(r"^SMPL_(?P<dpi>\d+)_DPI_(?P<replicate>R\d+)_.*$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--annotation-gff",
-        default="Variant_discovery_pipeline/Input/Reference/VEEV_INH_fromGenbank.gff3",
+        default="Variant_discovery_pipeline/Input/Reference/VEEV_ref_fromGenbank.gff3",
         help="GFF3 annotation used for CDS-based AA fallback when DNA_Change is not in CSV map.",
     )
     parser.add_argument(

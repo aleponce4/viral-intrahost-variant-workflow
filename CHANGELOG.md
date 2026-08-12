@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Fabricated report output removed (reporting integrity)**:
+  - `bin/generate_run_summary.py` no longer emits a hardcoded two-row `sampleA`/`sampleB`
+    `COMPLETED` table. It now derives one row per sample from the QC artefacts actually
+    staged into the task directory (`*.qc_stats.txt` from `LOFREQ_FILTER`, merged with
+    `*coverage_summary.tsv` from `COVERAGE_SUMMARIZE`). With no staged inputs it writes a
+    header-only TSV and warns on stderr instead of inventing samples.
+  - `bin/generate_coverage_plots.py` no longer writes a hardcoded 1×1-pixel PNG. It parses
+    the staged `samtools depth` TSVs and renders a real matplotlib figure: per-sample
+    log-scaled depth profile with 100×/1,000×/5,000× tier reference lines, plus a mean-depth
+    bar panel. Per-sample statistics are computed with `summarize_coverage.summarize_depth`
+    so figure and TSV numbers agree. An empty run yields an explicitly labelled
+    "no coverage data available" figure rather than a placeholder image.
+  - `bin/plot_coverage.py` is no longer a no-op stub; it is a thin wrapper over the single
+    coverage-plot implementation, exposing the `--coverage-dir` / `--output-dir` spelling.
+  - `modules/local/report/run_summary` and `modules/local/report/coverage_plots` were passing
+    flags the scripts do not accept (`--output-tsv`) or omitting `--dataset`; their commands
+    now match the real CLIs.
+
+### Changed
+- **Documentation**: Replaced the internal `docs/history/` build specifications with
+  `docs/migration.md`, a human-facing account of the legacy Bash → Nextflow DSL2 migration,
+  linked from the README.
+- **Third-party attribution**: Added `THIRD_PARTY_NOTICES.md` recording that
+  `assets/snpgenie/snpgenie.pl` is SNPGenie by Chase W. Nelson, retained under GPLv3 under
+  its own terms (with upstream URL, pinned commit, and citation). The project's own code
+  remains MIT-licensed. Added a "Third-party Components" section to the README.
+
+### Removed
+- **Study data**: Deleted all committed real study outputs under
+  `legacy/Variant_discovery_pipeline/Analysis_output/` (per-position intra-host allele
+  frequency CSVs and the derived TIFF figure). Cleared all notebook outputs from
+  `legacy/Variant_discovery_pipeline/Scripts/analysis.ipynb` and replaced leaked absolute
+  paths and internal specimen identifiers throughout `legacy/` with relative or clearly
+  invented placeholder values. Legacy docs now reference the synthetic fixtures in
+  `tests/data/`.
+
 ## [1.3.0] - 2026-07-29
 
 ### Fixed

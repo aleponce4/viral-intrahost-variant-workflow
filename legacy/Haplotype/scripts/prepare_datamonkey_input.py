@@ -29,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--gff",
-        default="Variant_discovery_pipeline/Input/Reference/VEEV_INH_fromGenbank.gff3",
+        default="Variant_discovery_pipeline/Input/Reference/VEEV_ref_fromGenbank.gff3",
         help="GFF3 file with CDS coordinates and gene_name attributes.",
     )
     parser.add_argument(
@@ -39,12 +39,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--sample-regex",
-        default=r"^INH_\d+_DPI_.*\.consensus\.fasta$",
+        default=r"^SMPL_\d+_DPI_.*\.consensus\.fasta$",
         help="Regex used to select consensus files to include.",
     )
     parser.add_argument(
         "--output-prefix",
-        default="INH_AllDPI",
+        default="SMPL_AllDPI",
         help="Prefix used for output FASTA filenames.",
     )
     parser.add_argument(

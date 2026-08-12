@@ -15,7 +15,7 @@ process REPORT_COVERAGE_PLOTS {
 
     script:
     """
-    plot_coverage.py --coverage-dir ${coverage_dir} --output-dir .
+    plot_coverage.py --coverage-dir ${coverage_dir} --output-dir . --dataset ${params.dataset}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -25,7 +25,7 @@ process REPORT_COVERAGE_PLOTS {
 
     stub:
     """
-    touch coverage_plot_stub.png
+    touch ${params.dataset}_coverage_summary.png
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

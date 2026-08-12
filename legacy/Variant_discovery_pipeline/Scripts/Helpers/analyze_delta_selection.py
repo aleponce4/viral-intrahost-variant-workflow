@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def load_manifest(manifest_path: Path) -> dict[str, str]:
-    """Maps bam_name -> dpi (e.g. s101 -> dpi1)"""
+    """Maps bam_name -> dpi (e.g. sampleA -> dpi1)"""
     mapping = {}
     with manifest_path.open("r", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter="\t")

@@ -8,7 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 
 
-DPI_PATTERN = re.compile(r"INH_(\d+)_DPI_")
+DPI_PATTERN = re.compile(r"SMPL_(\d+)_DPI_")
 
 
 def parse_args() -> argparse.Namespace:

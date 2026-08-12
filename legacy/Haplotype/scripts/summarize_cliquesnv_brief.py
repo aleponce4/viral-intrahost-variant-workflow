@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 
-SAMPLE_PATTERN = re.compile(r"^INH_(?P<dpi>\d+)_DPI_(?P<replicate>R\d+)_.*$")
+SAMPLE_PATTERN = re.compile(r"^SMPL_(?P<dpi>\d+)_DPI_(?P<replicate>R\d+)_.*$")
 TF_DIR_PATTERN = re.compile(r"^tf_(?P<tf>\d+p\d+)$")
 
 

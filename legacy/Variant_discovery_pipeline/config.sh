@@ -32,12 +32,12 @@ esac
 
 # ========== PATHS ==========
 # config.sh is at variant_analysis/workflow/config.sh
-# PROJECT_ROOT = 045_048_nftcore/ (parent of variant_analysis/)
+# PROJECT_ROOT = the study workspace directory (parent of variant_analysis/)
 VARIANT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_ROOT="$(cd "$VARIANT_ROOT/.." && pwd)"
 INPUT_DIR="${VARIANT_ROOT}/input/${DATASET}/BAMs"
-REFERENCE="${VARIANT_ROOT}/references/${VIRUS}_INH/viral_only.fasta"
-ANNOTATION="${VARIANT_ROOT}/references/${VIRUS}_INH/viral_only.gff3"
+REFERENCE="${VARIANT_ROOT}/references/${VIRUS}_ref/viral_only.fasta"
+ANNOTATION="${VARIANT_ROOT}/references/${VIRUS}_ref/viral_only.gff3"
 
 # Results go to WSL ext4 (SSD) to avoid 9p filesystem race conditions with parallel writes
 # Falls back to VARIANT_ROOT if WSL_HOME is not available
@@ -48,7 +48,7 @@ else
 fi
 mkdir -p "$RESULTS_DIR"
 
-# Note: For EEEV, the reference dir is EEEV_FL93, not EEEV_INH
+# Note: For EEEV, the reference dir is EEEV_FL93, not EEEV_ref
 if [ "$VIRUS" = "EEEV" ]; then
   REFERENCE="${VARIANT_ROOT}/references/EEEV_FL93/viral_only.fasta"
   ANNOTATION="${VARIANT_ROOT}/references/EEEV_FL93/viral_only.gff3"

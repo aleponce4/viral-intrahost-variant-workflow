@@ -22,7 +22,7 @@ LOFREQ_ENABLE_INDELQUAL=1              # Correct indel alignment quality
 LOFREQ_BAQ=1                           # Viterbi realignment (fixes alignment artifacts)
 
 # ========== GENERAL SETTINGS ==========
-VIRAL_CONTIG="VEEV_INH"                # Restrict to viral genome only (exclude host)
+VIRAL_CONTIG="VEEV_ref"                # Restrict to viral genome only (exclude host)
 THREADS=4                              # [TEST] Reduced from 20 for quick testing
 
 # ========== TEST-SPECIFIC NOTES ==========

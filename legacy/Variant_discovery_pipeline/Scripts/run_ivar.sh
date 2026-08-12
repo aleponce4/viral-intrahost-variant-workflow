@@ -10,7 +10,7 @@
 #
 # Usage:
 #   DATASET=mouse_veev bash run_ivar.sh
-#   DATASET=mouse_veev bash run_ivar.sh s101   # single sample
+#   DATASET=mouse_veev bash run_ivar.sh sampleA   # single sample
 # =====================================================================
 set -uo pipefail
 

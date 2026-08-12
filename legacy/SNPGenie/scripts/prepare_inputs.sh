@@ -15,21 +15,21 @@ MANIFEST_DIR="${INPUT_DIR}/manifest"
 mkdir -p "${REF_DIR}" "${VCF_DIR}" "${MANIFEST_DIR}"
 
 FASTA_SRC="${REF_SRC_DIR}/viral_only.fasta"
-GFF3_SRC="${REF_SRC_DIR}/VEEV_INH_fromGenbank.gff3"
-GTF_OUT="${REF_DIR}/VEEV_INH_fromGenbank.gtf"
+GFF3_SRC="${REF_SRC_DIR}/VEEV_ref_fromGenbank.gff3"
+GTF_OUT="${REF_DIR}/VEEV_ref_fromGenbank.gtf"
 
 cp -f "${FASTA_SRC}" "${REF_DIR}/viral_only.fasta"
-cp -f "${GFF3_SRC}" "${REF_DIR}/VEEV_INH_fromGenbank.gff3"
+cp -f "${GFF3_SRC}" "${REF_DIR}/VEEV_ref_fromGenbank.gff3"
 
 python3 "${ROOT_DIR}/scripts/convert_gff3_to_gtf.py" \
-  --gff3 "${REF_DIR}/VEEV_INH_fromGenbank.gff3" \
+  --gff3 "${REF_DIR}/VEEV_ref_fromGenbank.gff3" \
   --gtf "${GTF_OUT}"
 
 MANIFEST_FILE="${MANIFEST_DIR}/samples.tsv"
 printf "sample\tsource_filtered_vcf\tstaged_vcf\n" > "${MANIFEST_FILE}"
 
 sample_count=0
-for sample_dir in "${LOFREQ_DIR}"/INH_*; do
+for sample_dir in "${LOFREQ_DIR}"/SMPL_*; do
   [[ -d "${sample_dir}" ]] || continue
   sample="$(basename "${sample_dir}")"
   filtered_vcf_gz="${sample_dir}/variants.filtered.vcf.gz"

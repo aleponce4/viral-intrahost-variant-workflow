@@ -26,7 +26,7 @@ fi
 mkdir -p "${RUNS_DIR}" "${OUTPUT_DIR}" "${LOGS_DIR}"
 
 FASTA_FILE="${REF_DIR}/viral_only.fasta"
-GTF_FILE="${REF_DIR}/VEEV_INH_fromGenbank.gtf"
+GTF_FILE="${REF_DIR}/VEEV_ref_fromGenbank.gtf"
 DATE_TAG="$(date +%Y%m%d_%H%M%S)"
 
 run_one_threshold() {
@@ -47,7 +47,7 @@ run_one_threshold() {
     mkdir -p "${sample_work}" "${sample_out}"
     cp -f "${staged_vcf}" "${sample_work}/variants.vcf"
     cp -f "${FASTA_FILE}" "${sample_work}/viral_only.fasta"
-    cp -f "${GTF_FILE}" "${sample_work}/VEEV_INH_fromGenbank.gtf"
+    cp -f "${GTF_FILE}" "${sample_work}/VEEV_ref_fromGenbank.gtf"
 
     set +e
     (
@@ -57,7 +57,7 @@ run_one_threshold() {
         --minfreq="${minfreq}" \
         --snpreport="variants.vcf" \
         --fastafile="viral_only.fasta" \
-        --gtffile="VEEV_INH_fromGenbank.gtf"
+        --gtffile="VEEV_ref_fromGenbank.gtf"
     ) > "${sample_log}" 2>&1
     code=$?
     set -e

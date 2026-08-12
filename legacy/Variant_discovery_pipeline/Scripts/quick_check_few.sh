@@ -2,11 +2,12 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate lofreq-env
 
-BAM_DIR="/mnt/d/RNAseq/Alphavirus/045_048_nftcore/variant_analysis/input/mouse_veev/BAMs"
+# Point BAM_DIR at your own indexed BAM directory (override via environment).
+BAM_DIR="${BAM_DIR:-./input/${DATASET:-mouse_veev}/BAMs}"
 CONTIG="KP282671.1"
 
 # Check a few samples: challenge DPI 3-4 (should have virus)
-for s in s157 s158 s173 s174 s357 s373; do
+for s in ${SAMPLES:-sampleA sampleB}; do
     bam="$BAM_DIR/${s}.bam"
     reads=$(samtools view -c -r "$CONTIG" "$bam" 2>/dev/null || echo 0)
     if [ "$reads" -gt 0 ]; then

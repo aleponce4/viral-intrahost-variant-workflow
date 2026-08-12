@@ -39,7 +39,7 @@ Multi-sample viral variant calling pipeline using iVar and LoFreq with functiona
 - bcftools (with csq plugin)
 - Python 3
 - Reference genome: Input/inh.fasta
-- Annotation file: Input/INH.gff3
+- Annotation file: Input/viral_ref.gff3
 
 ## Important Notes
 

@@ -4,8 +4,8 @@ generate_lab_meeting_mapping_plots.py
 
 Generates publication-quality horizontal stacked barplots (samples as rows) for lab meeting presentation:
 1. VEEV: Intranasal (IN) [Panel A] vs. Subcutaneous (SC) [Panel B]
-2. EEEV: Intranasal (IN) [Panel A] vs. Subcutaneous (SC) [Panel B] (Excluding BDGR)
-3. EEEV: BDGR 251 Antiviral Study (Untreated EEEV [Panel A] vs. BDGR 251 + EEEV [Panel B])
+2. EEEV: Intranasal (IN) [Panel A] vs. Subcutaneous (SC) [Panel B] (excluding the antiviral-treatment arm)
+3. EEEV: Compound A Antiviral Study (Untreated EEEV [Panel A] vs. Compound A + EEEV [Panel B])
 
 Features:
 - Samples as rows (horizontal bars, ax.barh) with bars close together (height=0.92, minimal gap).
@@ -242,7 +242,7 @@ def plot_horizontal_dual_panel(df_panel_a, df_panel_b, title_a, title_b, main_ti
         ax.set_yticks(y_positions)
         ax.set_yticklabels([f"s{s}" for s in df_sorted['sample_id']], fontsize=8.5, fontweight='bold', color='black')
         
-        # Move "Sample ID" label to TOP, HORIZONTAL, directly above the top sample ID tick (s101 / s301)
+        # Move "Sample ID" label to TOP, HORIZONTAL, directly above the top sample ID tick (first sample in each group)
         ax.set_ylabel("")  # Clear standard vertical Y label
         trans = ax.get_yaxis_transform()
         top_y_pos = len(df_sorted) - 0.15
@@ -310,7 +310,7 @@ def main():
     # -------------------------------------------------------------
     # Figure 2: EEEV IN vs SC (Shared 150M Scale, Left Brackets)
     # -------------------------------------------------------------
-    print("\n2. Generating Horizontal Figure 2: EEEV Intranasal vs. Subcutaneous (Non-BDGR)...")
+    print("\n2. Generating Horizontal Figure 2: EEEV Intranasal vs. Subcutaneous (no antiviral)...")
     eeev_in = df[(df['dataset'] == 'mouse_eeev') & (df['route'] == 'intranasal')]
     eeev_sc = df[(df['dataset'] == 'mouse_eeev') & (df['route'] == 'SC') & (df['study_code'] == '048')]
     
@@ -325,21 +325,21 @@ def main():
     )
     
     # -------------------------------------------------------------
-    # Figure 3: EEEV BDGR Antiviral Study (Shared 150M Scale, Left Brackets)
+    # Figure 3: EEEV Compound A Antiviral Study (Shared 150M Scale, Left Brackets)
     # -------------------------------------------------------------
-    print("\n3. Generating Horizontal Figure 3: EEEV BDGR 251 Antiviral Study...")
-    bdgr_all = df[(df['dataset'] == 'mouse_eeev') & (df['sample_id'].astype(str).str.len() >= 5)]
+    print("\n3. Generating Horizontal Figure 3: EEEV Compound A Antiviral Study...")
+    antiviral_all = df[(df['dataset'] == 'mouse_eeev') & (df['sample_id'].astype(str).str.len() >= 5)]
     
-    bdgr_panel_a = bdgr_all[bdgr_all['treatment'].isin(['Mock', 'EEEV'])].copy()
-    bdgr_panel_b = bdgr_all[bdgr_all['treatment'].isin(['Mock', 'BDGR 251 + EEEV'])].copy()
+    antiviral_panel_a = antiviral_all[antiviral_all['treatment'].isin(['Mock', 'EEEV'])].copy()
+    antiviral_panel_b = antiviral_all[antiviral_all['treatment'].isin(['Mock', 'Compound A + EEEV'])].copy()
     
     plot_horizontal_dual_panel(
-        df_panel_a=bdgr_panel_a,
-        df_panel_b=bdgr_panel_b,
+        df_panel_a=antiviral_panel_a,
+        df_panel_b=antiviral_panel_b,
         title_a="EEEV Infection Alone (Untreated)",
-        title_b="BDGR 251 Antiviral Treatment + EEEV",
-        main_title="EEEV BDGR 251 Antiviral Study — Host vs. Viral Read Mapping",
-        output_prefix="eeev_bdgr_study_reads_mapping",
+        title_b="Compound A Antiviral Treatment + EEEV",
+        main_title="EEEV Compound A Antiviral Study — Host vs. Viral Read Mapping",
+        output_prefix="eeev_antiviral_study_reads_mapping",
         global_x_max=universal_x_max
     )
     

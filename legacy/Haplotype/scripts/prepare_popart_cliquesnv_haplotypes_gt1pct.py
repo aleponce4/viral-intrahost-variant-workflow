@@ -67,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--sample-regex",
-        default=r"^INH_\d+_DPI_.*$",
+        default=r"^SMPL_\d+_DPI_.*$",
         help="Regex to select sample IDs.",
     )
     parser.add_argument(
@@ -221,7 +221,7 @@ def normalize_haplotype_id(raw_haplotype: str) -> str:
 
 
 def short_sample_label(sample_id: str) -> str:
-    match = re.match(r"^INH_(\d+)_DPI_(R\d+)_.*$", sample_id)
+    match = re.match(r"^SMPL_(\d+)_DPI_(R\d+)_.*$", sample_id)
     if match:
         dpi = match.group(1)
         replicate = match.group(2)
@@ -258,14 +258,14 @@ def compute_weight_copies(frequency_percent: float, weight_scale: int) -> int:
 
 
 def infer_dpi_label(sample_id: str) -> str:
-    match = re.match(r"^INH_(\d+)_DPI_", sample_id)
+    match = re.match(r"^SMPL_(\d+)_DPI_", sample_id)
     if match:
         return f"DPI{match.group(1)}"
     return "NA"
 
 
 def infer_dpi_day(sample_id: str) -> str:
-    match = re.match(r"^INH_(\d+)_DPI_", sample_id)
+    match = re.match(r"^SMPL_(\d+)_DPI_", sample_id)
     if match:
         return match.group(1)
     return "NA"

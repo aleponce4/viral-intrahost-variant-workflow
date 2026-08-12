@@ -15,7 +15,7 @@ process REPORT_RUN_SUMMARY {
 
     script:
     """
-    generate_run_summary.py --results-dir ${results_dir} --output-tsv consolidated_sample_summary.tsv
+    generate_run_summary.py --results-dir ${results_dir} --outdir . --dataset ${params.dataset}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

@@ -19,7 +19,7 @@ process IVAR_VARIANTS {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    samtools mpileup -aa -A -d 0 -Q 0 -r ${params.viral_contig} --reference ${fasta} ${bam} | \\
+    samtools mpileup -aa -A -B -d 0 -q ${params.ivar_min_mq} -Q 0 -r ${params.viral_contig} --reference ${fasta} ${bam} | \\
         ivar variants -p ${prefix} -q ${params.ivar_min_bq} -t ${params.ivar_min_freq} -m ${params.ivar_min_depth} -r ${fasta} -g ${gff}
 
     cat <<-END_VERSIONS > versions.yml

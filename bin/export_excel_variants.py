@@ -29,13 +29,27 @@ def main():
                 parts = line.strip().split("\t")
                 if len(parts) >= 8:
                     info = parts[7]
-                    af = 0.0
+                    lofreq_af = 0.0
+                    dp4 = None
                     for item in info.split(";"):
-                        if item.startswith("AF="):
+                        if item.startswith("DP4="):
                             try:
-                                af = float(item.split("=")[1].split(",")[0])
+                                dp4 = [int(x) for x in item.split("=")[1].split(",")]
                             except ValueError:
-                                af = 0.0
+                                dp4 = None
+                        elif item.startswith("AF="):
+                            try:
+                                lofreq_af = float(item.split("=")[1].split(",")[0])
+                            except ValueError:
+                                lofreq_af = 0.0
+
+                    # INFO/AF is not a VAF -- see the note in
+                    # generate_variant_plots.py. Tier on the DP4 base counts.
+                    if dp4 and len(dp4) == 4 and sum(dp4) > 0:
+                        af = (dp4[2] + dp4[3]) / float(sum(dp4))
+                    # No DP4 -> iVar-derived VCF, whose AF is a real base-count ratio.
+                    else:
+                        af = lofreq_af
                     af_pct = af * 100.0
                     if af_pct >= 1.0:
                         tier = ">=1%"
@@ -50,8 +64,9 @@ def main():
                         "pos": parts[1],
                         "ref": parts[3],
                         "alt": parts[4],
-                        "af_proportion": f"{af:.6f}",
-                        "af_percent": f"{af_pct:.2f}%",
+                        "vaf_proportion": f"{af:.6f}",
+                        "vaf_percent": f"{af_pct:.2f}%",
+                        "lofreq_info_af": f"{lofreq_af:.6f}",
                         "frequency_tier": tier
                     })
 

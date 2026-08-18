@@ -36,7 +36,7 @@ def main():
         df.to_csv(summary_tsv_path, sep="\t", index=False)
     else:
         with summary_tsv_path.open("w", encoding="utf-8") as f:
-            f.write("sample\tchrom\tpos\tref\talt\tdepth\taf_proportion\taf_percent\ttier\n")
+            f.write("sample\tchrom\tpos\tref\talt\tdepth\tvaf_proportion\tlofreq_info_af\tvaf_percent\ttier\n")
             
     print(f"Processed {len(df)} variants across {len(vcf_files)} VCFs. Output TSV: {summary_tsv_path}")
 

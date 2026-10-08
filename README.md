@@ -81,16 +81,17 @@ nextflow run . -entry BUILD_STOCK_REFERENCE \
   --outdir ./refs
 ```
 
-It names the contig after the stock and indexes it, carries the lab annotation
-across with Liftoff, checks that the transfer did not break a reading frame, and
-writes a position-by-position map back to the lab reference. Outputs land in
-`<outdir>/StockReference/<stock_name>/`:
+It orients the consensus against the lab reference, names the contig after the
+stock and indexes it, carries the lab annotation across with Liftoff, checks that
+the transfer did not break a reading frame, and writes a position-by-position map
+back to the lab reference. Outputs land in `<outdir>/StockReference/<stock_name>/`:
 
 | File | Use |
 |---|---|
 | `<stock>.fasta`, `.fasta.fai` | `--fasta` for the normal run over that stock's samples |
 | `<stock>.gff3` | `--gff` for the same run |
 | `<stock>.unmapped.txt` | features Liftoff could not place; expected to be empty |
+| `<stock>.orientation.txt` | whether the consensus was used as assembled or reverse-complemented |
 | `qc/<stock>.annotation_check.tsv` | per-CDS frame and stop-codon checks |
 | `qc/<stock>.liftover.tsv` | every stock position against its reference position |
 
@@ -98,7 +99,13 @@ Then run the pipeline once per stock, pointing `--fasta` and `--gff` at those tw
 files. Use `qc/<stock>.liftover.tsv` to put results from different stocks on one
 coordinate system, and to place a reference-coordinate primer BED on the stock.
 
-Two details decide whether the check is meaningful:
+Three details decide whether the result is usable:
+
+- **Orientation is settled first.** An assembler picks a strand per run. On the
+  same stock reads, two runs of the same assembly pipeline produced opposite
+  orientations. The consensus is therefore aligned to the lab reference and
+  reverse-complemented when it came out backwards, so every stock reference
+  reads the same way round and coordinates stay comparable between stocks.
 
 - **The reference is used as a control.** A CDS problem the lab reference already
   has is reported as `inherited` and does not stop the run; only a problem the

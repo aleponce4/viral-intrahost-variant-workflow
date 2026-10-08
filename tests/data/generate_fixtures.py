@@ -92,6 +92,12 @@ def generate_stock():
           [("NODE_1_length_6000_cov_900", stock[:6000]),
            ("NODE_2_length_5443_cov_880", stock[6000:])])
 
+    # An assembler picks a strand per run, so the same reads can give either
+    # orientation. This is the same stock written the other way round.
+    complement = str.maketrans('ACGTNacgtn', 'TGCANtgcan')
+    write("tests/data/stock.rc.test.fasta",
+          [("stock-test-rc", stock.translate(complement)[::-1])])
+
 
 if __name__ == "__main__":
     generate_ref()

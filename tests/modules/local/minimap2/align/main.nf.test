@@ -12,8 +12,7 @@ nextflow_process {
                 """
                 input[0] = [
                     [ id: 'stock-test' ],
-                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
-                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true)
                 ]
                 input[1] = [
                     [ id: 'viral_ref' ],
@@ -39,8 +38,7 @@ nextflow_process {
                 """
                 input[0] = [
                     [ id: 'stock-test' ],
-                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
-                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true)
                 ]
                 input[1] = [
                     [ id: 'viral_ref' ],

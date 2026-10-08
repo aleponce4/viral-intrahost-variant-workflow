@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **A stock consensus is oriented against the lab reference before anything reads it**
+  (`STOCK_PREPARE`): an assembler has no way to know which strand a genome is meant to be read
+  on and picks one per run. Two runs of the same assembly pipeline over the same stock reads gave
+  opposite orientations, so roughly half of all stocks would otherwise get a reference whose genes
+  sit on the minus strand and whose coordinates run backwards against every other stock.
+  `MINIMAP2_ALIGN` now runs first on the raw consensus, `STOCK_PREPARE` takes the strand from that
+  alignment and reverse-complements when it is `-`, and the coordinate map is built from a second
+  alignment of the oriented sequence. The chosen orientation is published as
+  `<stock>.orientation.txt`. `MINIMAP2_ALIGN` no longer requires an index for its query, since the
+  query is not indexed until after it has been oriented.
 - **Per-stock references (`-entry BUILD_STOCK_REFERENCE`)**: turns a de novo consensus for one
   virus stock into the `--fasta` and `--gff` of a normal run, so calls describe the variation
   inside that stock instead of its fixed differences from a strain in GenBank.

@@ -4,6 +4,57 @@ nextflow_workflow {
     script "subworkflows/local/stock_reference.nf"
     workflow "STOCK_REFERENCE"
 
+    test("stock_reference - orients a minus-strand consensus to the lab reference") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.rc.test.fasta", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ])
+                input[2] = Channel.of([
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert path(workflow.out.orientation[0][1]).text.trim() == 'reverse-complemented'
+
+            // Same reference as the forward case, whichever strand it assembled on.
+            def produced = path(workflow.out.fasta[0][1]).readLines()[1..-1].join('').toUpperCase()
+            def forward = path("${projectDir}/tests/data/stock.test.fasta").readLines()[1..-1]
+                .join('').toUpperCase()
+            assert produced == forward
+
+            // The coordinate map is built on the oriented sequence, so it must
+            // come out forward. Before orientation was handled this step failed.
+            def rows = path(workflow.out.liftover[0][1]).readLines()[1..-1]
+                .collect { it.split('\t') }
+            assert rows.count { it[4] == 'mismatch' } == 1
+            assert rows.count { it[4] == 'insertion' } == 2
+            assert rows.count { it[4] == 'deletion' } == 3
+
+            // The annotation lands on the forward strand, as in the lab reference.
+            def cds = path(workflow.out.gff[0][1]).readLines()
+                .findAll { it.trim() && !it.startsWith('#') }
+                .collect { it.split('\t') }
+                .findAll { it[2] == 'CDS' }
+            assert cds.size() == 1
+            assert cds[0][6] == '+'
+        }
+
+    }
+
     test("stock_reference - turns a consensus into a usable per-stock reference") {
 
         when {
@@ -46,6 +97,7 @@ nextflow_workflow {
 
             assert workflow.out.annotation_check[0][1] != null
             assert workflow.out.unmapped[0][1] != null
+            assert path(workflow.out.orientation[0][1]).text.trim() == 'as assembled'
 
             // The coordinate map covers every base of both sequences, and finds
             // the substitution, the 2 bp insertion and the 3 bp deletion that

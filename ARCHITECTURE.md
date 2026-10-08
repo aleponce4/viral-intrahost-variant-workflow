@@ -34,7 +34,7 @@ The pipeline follows strict Nextflow DSL2 modularity conventions:
 | **`INPUT_CHECK`** | Validates CSV samplesheet structure (`sample,fastq_1,fastq_2,treatment`) and verifies reference FASTA/GFF3 existence. | `plugin/nf-schema` |
 | **`READ_PREPROCESSING`** | Performs adapter/quality trimming, aligns paired FASTQ reads against the viral reference, sorts and indexes BAMs, and extracts target viral contig alignments. | `fastp`, `bwa mem`, `samtools` |
 | **`VARIANT_CALLING`** | Executes parallelized variant calling with no artificial allele frequency floors on raw pileups. | `lofreq call-parallel`, `lofreq filter`, `ivar variants`, `ivar consensus` |
-| **`ANNOTATION`** | Converts iVar TSV outputs to valid VCFs and annotates variant consequences in haploid viral coding sequences. | `ivar_variants_to_vcf.py`, `bcftools csq` |
+| **`ANNOTATION`** | Converts iVar TSV outputs to valid VCFs (indels as anchored VCF alleles), left-aligns indels, and annotates variant consequences in haploid viral coding sequences. | `ivar_variants_to_vcf.py`, `bcftools reheader`, `bcftools norm`, `bcftools csq` |
 | **`COVERAGE_QC`** | Calculates per-base depth statistics, target coverage fractions, and mean depth metrics. | `samtools depth`, `generate_coverage_plots.py` |
 | **`SELECTION`** | Executes SNPGenie per-sample for nucleotide diversity ($\pi_N$, $\pi_S$) and $d_N/d_S$ ratios, followed by non-parametric Kruskal-Wallis & limma differential selection analysis. | `SNPGenie` (Perl), `analyze_delta_selection.py`, `analyze_delta_limma.R` |
 | **`HAPLOTYPE`** | Reconstructs quasispecies haplotypes and estimates intra-host viral quasispecies diversity. | `CliqueSNV`, `VILOCA` |

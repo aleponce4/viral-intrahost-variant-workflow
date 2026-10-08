@@ -56,6 +56,24 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(v['REF_DP'], 1091610)
         self.assertEqual(v['TOTAL_DP'], 1163890)
 
+    def test_snv_alleles_are_unchanged(self):
+        v, = conv.parse_ivar_tsv(self.tsv(row(ref='T', alt='C')))
+        self.assertEqual((v['REF'], v['ALT']), ('T', 'C'))
+
+    def test_insertion_is_anchored_on_the_ref_base(self):
+        v, = conv.parse_ivar_tsv(self.tsv(row(ref='T', alt='+TT')))
+        self.assertEqual((v['REF'], v['ALT']), ('T', 'TTT'))
+
+    def test_deletion_is_anchored_on_the_ref_base(self):
+        v, = conv.parse_ivar_tsv(self.tsv(row(ref='A', alt='-GTAATT')))
+        self.assertEqual((v['REF'], v['ALT']), ('AGTAATT', 'A'))
+
+    def test_malformed_indel_is_an_error(self):
+        for alt in ('+', '-', '+X1', '-A-'):
+            with self.subTest(alt=alt):
+                with self.assertRaisesRegex(ValueError, r'sample\.tsv:2'):
+                    conv.parse_ivar_tsv(self.tsv(row(alt=alt)))
+
     def test_column_order_does_not_matter(self):
         names = HEADER.split('\t')
         values = row().split('\t')
@@ -114,6 +132,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(rec[6], 'FAIL')
         self.assertEqual(rec[7], 'DP=10000;AF=0.0125')
         self.assertEqual(rec[9], '1:10000:9000,1000:0.0125')
+
+    def test_indels_are_written_as_valid_vcf_alleles(self):
+        proc, vcf = self.run_cli(
+            HEADER + '\n' + row(pos=2, ref='C', alt='+TT') + '\n'
+            + row(pos=3, ref='G', alt='-T') + '\n')
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        recs = [l.split('\t') for l in vcf.splitlines() if not l.startswith('#')]
+        self.assertEqual([r[3:5] for r in recs], [['C', 'CTT'], ['GT', 'G']])
+        self.assertFalse(any(c in r[3] + r[4] for r in recs for c in '+-'))
 
     def test_bad_input_exits_nonzero_without_a_vcf(self):
         proc, vcf = self.run_cli(HEADER + '\n' + row(total_dp='x') + '\n')

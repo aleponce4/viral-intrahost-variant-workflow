@@ -19,7 +19,15 @@ process BCFTOOLS_CSQ {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    bcftools csq -f ${fasta} -g ${gff} --local-csq ${vcf} -o ${prefix}.csq.vcf
+    set -o pipefail
+
+    # iVar and LoFreq VCFs carry no ##contig lines, which bcftools norm needs, so
+    # take them from the FASTA index. Then left-align indels: iVar reports an
+    # insertion inside a homopolymer at the last base of the run, and csq expects
+    # normalized indels. Normalizing leaves SNV records unchanged.
+    bcftools reheader --fai ${fai} ${vcf} \\
+        | bcftools norm -f ${fasta} --check-ref w -Ov \\
+        | bcftools csq -f ${fasta} -g ${gff} --local-csq -o ${prefix}.csq.vcf
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

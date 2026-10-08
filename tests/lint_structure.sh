@@ -41,6 +41,8 @@ MANDATORY_FILES=(
     "bin/build_haplotype_tables.py"
     "bin/summarize_linked_mutations.py"
     "bin/export_excel_variants.py"
+    "bin/build_liftover_table.py"
+    "bin/check_lifted_annotation.py"
     "bin/parse_gb_to_gff3.py"
     "bin/convert_gff3_to_gtf.py"
     "modules/local/fastqc/main.nf"

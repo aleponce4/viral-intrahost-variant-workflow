@@ -1,0 +1,6 @@
+##gff-version 3
+# Liftoff v1.6.3
+# /usr/local/bin/liftoff -g ref_input.gff3 -o stock.gff3 -u unmapped.txt -dir inter -p 2 stock.fasta ref.fasta
+stock-test	Liftoff	gene	50	7549	.	+	.	ID=gene0;Name=nonstructural_polyprotein;biotype=protein_coding;coverage=1.0;sequence_ID=1.0;valid_ORFs=0;extra_copy_number=0;copy_num_ID=gene0_0
+stock-test	Liftoff	mRNA	50	7549	.	+	.	ID=rna0;Parent=gene0;Name=nonstructural_polyprotein;biotype=protein_coding;matches_ref_protein=True;valid_ORF=False;missing_stop_codon=True;extra_copy_number=0
+stock-test	Liftoff	CDS	50	7549	.	+	.	ID=cds0;Parent=rna0;Name=nsP1-4;protein_id=YP_009118625.1;extra_copy_number=0

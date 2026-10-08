@@ -4,3 +4,25 @@
 legacy/** linguist-vendored
 assets/** linguist-vendored
 *.ipynb linguist-documentation
+
+# Line endings for bioinformatics text formats.
+# A .fai index stores byte offsets into its FASTA, so a checkout that turned LF
+# into CRLF on a Windows machine would leave the index pointing at the wrong
+# bytes. The tab-delimited formats are parsed by byte for the same reason.
+*.fasta  text eol=lf
+*.fa     text eol=lf
+*.fai    text eol=lf
+*.gff3   text eol=lf
+*.gtf    text eol=lf
+*.bed    text eol=lf
+*.paf    text eol=lf
+*.vcf    text eol=lf
+*.tsv    text eol=lf
+*.sam    text eol=lf
+
+# Binary formats, so git never rewrites a byte.
+*.bam    binary
+*.bai    binary
+*.gz     binary
+*.xlsx   binary
+*.jar    binary

@@ -1,0 +1,67 @@
+nextflow_process {
+
+    name "Test Process STOCK_LIFTOVER_TABLE"
+    script "modules/local/stock/liftover_table/main.nf"
+    process "STOCK_LIFTOVER_TABLE"
+
+    test("stock_liftover_table - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.paf", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.table[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    test("stock_liftover_table - maps every position in both directions") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.paf", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.table[0][1]).readLines()
+            assert lines[0].split('\t') == ['stock_contig', 'stock_pos', 'ref_contig',
+                                            'ref_pos', 'status', 'stock_base', 'ref_base']
+            def rows = lines[1..-1].collect { it.split('\t') }
+
+            // The fixture stock is the test reference with one substitution, a
+            // 2 bp insertion and a 3 bp deletion.
+            assert rows.count { it[4] == 'mismatch' } == 1
+            assert rows.count { it[4] == 'insertion' } == 2
+            assert rows.count { it[4] == 'deletion' } == 3
+
+            // Every base on each side is accounted for exactly once, which is
+            // what makes the table safe to translate coordinates with.
+            assert rows.count { it[1] != 'NA' } == 11443
+            assert rows.count { it[3] != 'NA' } == 11444
+
+            def snv = rows.find { it[4] == 'mismatch' }
+            assert snv[1] == '9000' && snv[3] == '9000'
+        }
+
+    }
+
+}

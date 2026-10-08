@@ -1,0 +1,93 @@
+nextflow_process {
+
+    name "Test Process STOCK_CHECK_ANNOTATION"
+    script "modules/local/stock/check_annotation/main.nf"
+    process "STOCK_CHECK_ANNOTATION"
+
+    test("stock_check_annotation - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.gff3", checkIfExists: true)
+                ]
+                input[2] = [
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ]
+                input[3] = [
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.report[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    test("stock_check_annotation - passes a sound transfer and reports per CDS") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.gff3", checkIfExists: true)
+                ]
+                input[2] = [
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ]
+                input[3] = [
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.report[0][1]).readLines()
+            def keys = lines[0].split('\t')
+            assert keys.contains('in_contig')
+            assert keys.contains('length_mod3')
+            assert keys.contains('no_internal_stop')
+
+            def rows = lines[1..-1].collect { [keys, it.split('\t')].transpose().collectEntries() }
+            assert rows.size() == 1
+            assert rows[0].in_contig == 'pass'
+            assert rows[0].length_mod3 == 'pass'
+
+            // The fixture reference is a random sequence, so its single CDS is
+            // full of stop codons. They come from the reference, so the check
+            // marks them inherited and lets the run continue. Without the
+            // reference control this transfer would look broken.
+            assert rows[0].no_internal_stop in ['pass', 'inherited']
+        }
+
+    }
+
+}

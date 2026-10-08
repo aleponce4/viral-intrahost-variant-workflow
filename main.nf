@@ -19,6 +19,50 @@ include { HAPLOTYPE              } from './subworkflows/local/haplotype'
 include { REPORTING              } from './subworkflows/reporting/main'
 include { DUMP_SOFTWARE_VERSIONS } from './modules/local/dumpsoftwareversions/main'
 include { MULTIQC                } from './modules/local/multiqc/main'
+include { SAMTOOLS_FAIDX        } from './modules/local/samtools/faidx/main'
+include { STOCK_REFERENCE       } from './subworkflows/local/stock_reference'
+
+/*
+ * Build a per-stock reference from a de novo consensus:
+ *
+ *   nextflow run . -entry BUILD_STOCK_REFERENCE -profile docker \
+ *       --stock_consensus stock.fasta --stock_name TC83-stock \
+ *       --fasta lab_reference.fasta --gff lab_reference.gff3 --outdir refs/
+ *
+ * The outputs are the --fasta and --gff for a normal run of this pipeline over
+ * that stock's samples. This entry does not read a samplesheet, so it checks its
+ * own parameters instead of calling validateParameters(), whose required list
+ * covers the main workflow.
+ */
+workflow BUILD_STOCK_REFERENCE {
+    if (!params.stock_consensus) {
+        error "Parameter --stock_consensus must be specified (the de novo consensus FASTA for one stock)."
+    }
+    if (!params.fasta) {
+        error "Parameter --fasta must be specified (the lab reference to transfer the annotation from)."
+    }
+    if (!params.gff) {
+        error "Parameter --gff must be specified (the lab reference annotation, with CDS features)."
+    }
+
+    def stock_id = params.stock_name ?: file(params.stock_consensus).getBaseName()
+
+    ch_consensus = Channel.of([ [ id: stock_id ], file(params.stock_consensus, checkIfExists: true) ])
+    ch_ref_gff   = Channel.of([ [ id: 'reference' ], file(params.gff, checkIfExists: true) ])
+
+    SAMTOOLS_FAIDX(
+        Channel.of([ [ id: 'reference' ], file(params.fasta, checkIfExists: true) ])
+    )
+
+    STOCK_REFERENCE(ch_consensus, SAMTOOLS_FAIDX.out.fai, ch_ref_gff)
+
+    DUMP_SOFTWARE_VERSIONS(
+        STOCK_REFERENCE.out.versions
+            .mix(SAMTOOLS_FAIDX.out.versions)
+            .unique()
+            .collectFile(name: 'collated_versions.yml', newLine: true)
+    )
+}
 
 workflow {
     validateParameters()

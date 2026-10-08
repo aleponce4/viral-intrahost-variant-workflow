@@ -1,0 +1,88 @@
+nextflow_process {
+
+    name "Test Process LIFTOFF"
+    script "modules/local/liftoff/main.nf"
+    process "LIFTOFF"
+
+    test("liftoff - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ]
+                input[2] = [
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.gff[0][1]).exists()
+            assert path(process.out.unmapped[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    test("liftoff - carries the CDS onto the stock with nothing unmapped") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ]
+                input[2] = [
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            // Nothing may be dropped: a lost CDS means variants in that gene
+            // would come back unannotated.
+            assert path(process.out.unmapped[0][1]).readLines().findAll { it.trim() }.isEmpty()
+
+            def rows = path(process.out.gff[0][1]).readLines()
+                .findAll { it.trim() && !it.startsWith('#') }
+                .collect { it.split('\t') }
+            def cds = rows.findAll { it[2] == 'CDS' }
+            assert cds.size() == 1
+
+            // The annotation must land on the stock contig, not keep the
+            // reference's name, or bcftools csq would find no matching sequence.
+            assert cds[0][0] == 'stock-test'
+
+            // Every difference in the fixture sits downstream of the CDS, so its
+            // coordinates are expected to come across unchanged.
+            assert cds[0][3] == '50'
+            assert cds[0][4] == '7549'
+        }
+
+    }
+
+}

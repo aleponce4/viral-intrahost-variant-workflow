@@ -9,5 +9,13 @@ This directory contains test datasets used by `nf-test` and the `-profile test` 
 - `sampleA.test.bam` / `sampleA.test.bam.bai`: Test BAM with seeded variants.
 - `sampleB.test.bam` / `sampleB.test.bam.bai`: Test BAM with seeded variants.
 - `primers.test.bed`: Synthetic primer BED file for amplicon protocol testing.
+- `sampleA.test.ivar.tsv`: iVar `variants` output in iVar's real column layout, holding an SNV, an insertion inside a homopolymer run and an in-frame deletion.
+
+Stock reference fixtures, used by `-entry BUILD_STOCK_REFERENCE`:
+
+- `stock.test.fasta` / `.fai`: The test reference with one substitution (position 9000), a 2 bp insertion and a 3 bp deletion. All three sit after the CDS (50-7549), so the reading-frame checks test the annotation transfer rather than the edits.
+- `stock.multi.test.fasta`: The same sequence split in two, so a test can show that a fragmented assembly is refused rather than truncated to its first contig.
+- `stock.test.paf`: `minimap2 -cx asm10 --cs` of the stock against the reference. Input to the coordinate map.
+- `stock.test.gff3`: The reference annotation carried onto the stock by Liftoff.
 
 Fixtures are generated deterministically using `tests/data/generate_fixtures.sh`.

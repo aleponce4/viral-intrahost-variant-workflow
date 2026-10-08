@@ -92,12 +92,44 @@ back to the lab reference. Outputs land in `<outdir>/StockReference/<stock_name>
 | `<stock>.gff3` | `--gff` for the same run |
 | `<stock>.unmapped.txt` | features Liftoff could not place; expected to be empty |
 | `<stock>.orientation.txt` | whether the consensus was used as assembled or reverse-complemented |
+| `<stock>.stock_report.md`, `.tsv` | one page: distance from the lab reference, annotation, anything to look at |
+| `<stock>.primers.bed` | the primer scheme in this stock's coordinates, when `--stock_primer_bed` was given |
 | `qc/<stock>.annotation_check.tsv` | per-CDS frame and stop-codon checks |
 | `qc/<stock>.liftover.tsv` | every stock position against its reference position |
 
 Then run the pipeline once per stock, pointing `--fasta` and `--gff` at those two
 files. Use `qc/<stock>.liftover.tsv` to put results from different stocks on one
-coordinate system, and to place a reference-coordinate primer BED on the stock.
+coordinate system.
+
+### Amplicon stocks
+
+A primer scheme is designed once, against the lab reference, but `ivar trim`
+needs the coordinates of whatever the reads were aligned to. Against a per-stock
+reference those no longer agree: one indel between the stock and the reference
+shifts every primer after it. Pass the scheme in reference coordinates and it is
+moved onto the stock:
+
+```bash
+nextflow run . -entry BUILD_STOCK_REFERENCE ... \
+  --stock_primer_bed primers_designed_against_the_reference.bed
+```
+
+Then use the output for the calling run:
+
+```bash
+nextflow run . -profile docker \
+  --input samplesheet.csv \
+  --fasta refs/StockReference/TC83-stock/TC83-stock.fasta \
+  --gff   refs/StockReference/TC83-stock/TC83-stock.gff3 \
+  --protocol amplicon \
+  --primer_bed refs/StockReference/TC83-stock/TC83-stock.primers.bed \
+  --outdir calls
+```
+
+A primer whose site the stock has deleted is dropped rather than moved somewhere
+plausible, because an amplicon that cannot be trimmed must not be trimmed wrongly.
+`<stock>.primers_liftover.tsv` says what happened to each interval, and the stock
+report lists anything dropped or resized.
 
 Three details decide whether the result is usable:
 

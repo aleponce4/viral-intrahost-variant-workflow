@@ -1,0 +1,2 @@
+stock_contig	ref_contig	stock_aligned_from	stock_aligned_to	ref_aligned_from	ref_aligned_to	identity	match	mismatch	insertion	deletion
+stock-test	KP282671.1	1	11443	1	11444	0.999913	11440	1	2	3

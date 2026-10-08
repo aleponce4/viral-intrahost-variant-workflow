@@ -1,0 +1,89 @@
+nextflow_process {
+
+    name "Test Process STOCK_REPORT"
+    script "modules/local/stock/report/main.nf"
+    process "STOCK_REPORT"
+
+    test("stock_report - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.annotation_check.test.tsv", checkIfExists: true) ]
+                input[2] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.liftover_summary.test.tsv", checkIfExists: true) ]
+                input[3] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.orientation.test.txt", checkIfExists: true) ]
+                input[4] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.unmapped.test.txt", checkIfExists: true) ]
+                input[5] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.markdown[0][1]).exists()
+            assert path(process.out.tsv[0][1]).exists()
+        }
+
+    }
+
+    test("stock_report - states the distance from the lab reference and flags nothing clean") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.annotation_check.test.tsv", checkIfExists: true) ]
+                input[2] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.liftover_summary.test.tsv", checkIfExists: true) ]
+                input[3] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.orientation.test.txt", checkIfExists: true) ]
+                input[4] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.unmapped.test.txt", checkIfExists: true) ]
+                input[5] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('\t'), lines[1].split('\t')].transpose().collectEntries()
+
+            // The numbers must come from the liftover summary, not be invented.
+            assert row.stock == 'stock-test'
+            assert row.length == '11443'
+            assert row.substitutions == '1'
+            assert row.inserted_vs_reference == '2'
+            assert row.deleted_vs_reference == '3'
+            assert row.reference == 'KP282671.1'
+            assert row.cds_transferred == '1'
+            assert row.cds_unmapped == '0'
+            assert row.ambiguous_bases == '0'
+            assert row.orientation == 'as assembled'
+
+            def md = path(process.out.markdown[0][1]).text
+            assert md.contains('# Stock reference: stock-test')
+            assert md.contains('KP282671.1')
+            // The report has to say why a per-stock reference is worth having.
+            assert md.contains('fixed differences')
+        }
+
+    }
+
+}

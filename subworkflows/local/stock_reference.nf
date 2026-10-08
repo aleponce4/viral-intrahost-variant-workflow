@@ -21,12 +21,15 @@ include { MINIMAP2_ALIGN as MINIMAP2_ORIENT      } from '../../modules/local/min
 include { MINIMAP2_ALIGN as MINIMAP2_LIFTOVER    } from '../../modules/local/minimap2/align/main'
 include { STOCK_LIFTOVER_TABLE                   } from '../../modules/local/stock/liftover_table/main'
 include { STOCK_CHECK_ANNOTATION                 } from '../../modules/local/stock/check_annotation/main'
+include { STOCK_LIFTOVER_BED                     } from '../../modules/local/stock/liftover_bed/main'
+include { STOCK_REPORT                           } from '../../modules/local/stock/report/main'
 
 workflow STOCK_REFERENCE {
     take:
-    ch_consensus // channel: [ val(meta), path(consensus_fasta) ]
-    ch_ref_fasta // channel: [ val(meta), path(fasta), path(fai) ]
-    ch_ref_gff   // channel: [ val(meta), path(gff) ]
+    ch_consensus  // channel: [ val(meta), path(consensus_fasta) ]
+    ch_ref_fasta  // channel: [ val(meta), path(fasta), path(fai) ]
+    ch_ref_gff    // channel: [ val(meta), path(gff) ]
+    ch_primer_bed // value:   path(primer bed in reference coordinates), or a NO_FILE placeholder
 
     main:
     ch_versions = Channel.empty()
@@ -58,6 +61,30 @@ workflow STOCK_REFERENCE {
     MINIMAP2_LIFTOVER(ch_stock_fasta.map { meta, fasta, fai -> [ meta, fasta ] }, ch_ref_fasta.first())
     STOCK_LIFTOVER_TABLE(MINIMAP2_LIFTOVER.out.paf)
 
+    // Amplicon stocks: a primer scheme designed against the lab reference has to
+    // be moved onto this stock before ivar trim can use it.
+    ch_primer_out = Channel.empty()
+    ch_primer_report = Channel.empty()
+    ch_primer_for_report = Channel.value(file("${projectDir}/assets/NO_FILE"))
+    if (params.stock_primer_bed) {
+        STOCK_LIFTOVER_BED(STOCK_LIFTOVER_TABLE.out.table, ch_primer_bed)
+        ch_primer_out = STOCK_LIFTOVER_BED.out.bed
+        ch_primer_report = STOCK_LIFTOVER_BED.out.report
+        ch_primer_for_report = STOCK_LIFTOVER_BED.out.report.map { meta, tsv -> tsv }
+        ch_versions = ch_versions.mix(STOCK_LIFTOVER_BED.out.versions)
+    }
+
+    // One page per stock: how far it sits from the lab reference, whether the
+    // annotation came across intact, and anything a reader should look at.
+    STOCK_REPORT(
+        ch_stock_fasta,
+        STOCK_CHECK_ANNOTATION.out.report,
+        STOCK_LIFTOVER_TABLE.out.summary,
+        STOCK_PREPARE.out.orientation,
+        LIFTOFF.out.unmapped,
+        ch_primer_for_report
+    )
+
     ch_versions = ch_versions
         .mix(MINIMAP2_ORIENT.out.versions)
         .mix(STOCK_PREPARE.out.versions)
@@ -65,6 +92,7 @@ workflow STOCK_REFERENCE {
         .mix(STOCK_CHECK_ANNOTATION.out.versions)
         .mix(MINIMAP2_LIFTOVER.out.versions)
         .mix(STOCK_LIFTOVER_TABLE.out.versions)
+        .mix(STOCK_REPORT.out.versions)
 
     emit:
     fasta            = ch_stock_fasta                 // [ meta, fasta, fai ]
@@ -75,5 +103,9 @@ workflow STOCK_REFERENCE {
     liftover         = STOCK_LIFTOVER_TABLE.out.table
     liftover_summary = STOCK_LIFTOVER_TABLE.out.summary
     paf              = MINIMAP2_LIFTOVER.out.paf
+    primer_bed       = ch_primer_out       // only when --stock_primer_bed was given
+    primer_report    = ch_primer_report
+    report_md        = STOCK_REPORT.out.markdown
+    report_tsv       = STOCK_REPORT.out.tsv
     versions         = ch_versions
 }

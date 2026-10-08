@@ -249,6 +249,11 @@
         "stock_name": {
           "type": "string",
           "description": "Name given to the stock contig, and the CHROM of every variant called against it. Defaults to the consensus file name."
+        },
+        "stock_primer_bed": {
+          "type": "string",
+          "format": "file-path",
+          "description": "Primer scheme in lab-reference coordinates (BED6). Moved onto the stock, because ivar trim needs the coordinates of whatever the reads were aligned to."
         }
       }
     }
@@ -361,6 +366,9 @@
     },
     "stock_name": {
       "$ref": "#/definitions/stock_reference_options/properties/stock_name"
+    },
+    "stock_primer_bed": {
+      "$ref": "#/definitions/stock_reference_options/properties/stock_primer_bed"
     }
   }
 }

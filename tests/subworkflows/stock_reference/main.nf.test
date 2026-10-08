@@ -22,6 +22,7 @@ nextflow_workflow {
                     [ id: 'viral_gff' ],
                     file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
                 ])
+                input[3] = Channel.value(file("${projectDir}/assets/NO_FILE"))
                 """
             }
         }
@@ -73,6 +74,7 @@ nextflow_workflow {
                     [ id: 'viral_gff' ],
                     file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
                 ])
+                input[3] = Channel.value(file("${projectDir}/assets/NO_FILE"))
                 """
             }
         }
@@ -98,6 +100,17 @@ nextflow_workflow {
             assert workflow.out.annotation_check[0][1] != null
             assert workflow.out.unmapped[0][1] != null
             assert path(workflow.out.orientation[0][1]).text.trim() == 'as assembled'
+
+            // One page per stock, with the numbers taken from the run rather
+            // than restated by hand.
+            def report = path(workflow.out.report_tsv[0][1]).readLines()
+            def row = [report[0].split('\t'), report[1].split('\t')].transpose().collectEntries()
+            assert row.stock == 'TC83-stock'
+            assert row.substitutions == '1'
+            assert row.inserted_vs_reference == '2'
+            assert row.deleted_vs_reference == '3'
+            assert row.cds_transferred == '1'
+            assert path(workflow.out.report_md[0][1]).text.contains('# Stock reference: TC83-stock')
 
             // The coordinate map covers every base of both sequences, and finds
             // the substitution, the 2 bp insertion and the 3 bp deletion that

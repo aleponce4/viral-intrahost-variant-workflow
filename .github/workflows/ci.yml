@@ -31,6 +31,9 @@ jobs:
       - name: Lint container pins
         run: bash tests/lint_containers.sh
 
+      - name: Unit tests for bin/ parsers
+        run: python3 -m unittest discover -s tests/unit -v
+
       - name: Parse test profile config
         run: nextflow config -profile test > /dev/null
 

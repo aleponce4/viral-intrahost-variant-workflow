@@ -5,41 +5,62 @@ import argparse
 import math
 from datetime import datetime
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
+
+# iVar variants columns this script reads, looked up by name. iVar's layout is
+# REGION POS REF ALT REF_DP REF_RV REF_QUAL ALT_DP ALT_RV ALT_QUAL ALT_FREQ
+# TOTAL_DP PVAL PASS, then GFF columns when a GFF is given. Position-based
+# indexing read ALT_QUAL as ALT_FREQ and REF_RV as ALT_DP.
+REQUIRED_COLUMNS = (
+    'REGION', 'POS', 'REF', 'ALT', 'REF_DP', 'ALT_DP',
+    'ALT_FREQ', 'TOTAL_DP', 'PVAL', 'PASS',
+)
+
+def _count(value):
+    """A depth from an iVar column. iVar prints counts of a million or more in
+    scientific notation ("1.16389e+06"), which str.isdigit() rejects."""
+    return int(round(float(value)))
 
 def parse_ivar_tsv(tsv_file):
-    """Parse iVar TSV file and extract variant information."""
+    """Parse iVar TSV file by column name and extract variant information.
+
+    Raises ValueError on a missing column or an unparseable value, so a bad
+    file stops the run instead of producing zeros.
+    """
     variants = []
     with open(tsv_file, 'r', encoding='utf-8') as f:
-        header = f.readline().strip().split('\t')
-        for line in f:
-            line = line.strip()
-            if not line:
+        header = f.readline().rstrip('\r\n').split('\t')
+        missing = [c for c in REQUIRED_COLUMNS if c not in header]
+        if missing:
+            raise ValueError(
+                f"{tsv_file}: missing required iVar column(s): {', '.join(missing)}"
+            )
+        col = {name: header.index(name) for name in REQUIRED_COLUMNS}
+        width = max(col.values()) + 1
+        for line_no, line in enumerate(f, start=2):
+            line = line.rstrip('\r\n')
+            if not line.strip():
                 continue
             fields = line.split('\t')
-            if len(fields) >= 12:
-                try:
-                    alt_freq = float(fields[9])
-                except (IndexError, ValueError):
-                    alt_freq = 0.0
-                try:
-                    pval = float(fields[11]) if len(fields) > 11 else 1.0
-                except (IndexError, ValueError):
-                    pval = 1.0
-
-                variant = {
-                    'CHROM': fields[0],
-                    'POS': int(fields[1]),
-                    'REF': fields[2],
-                    'ALT': fields[3],
-                    'REF_DP': int(fields[4]) if fields[4].isdigit() else 0,
-                    'ALT_DP': int(fields[5]) if fields[5].isdigit() else 0,
-                    'ALT_FREQ': alt_freq,
-                    'TOTAL_DP': int(fields[10]) if fields[10].isdigit() else 0,
-                    'PVAL': pval,
-                    'PASS': fields[12] if len(fields) > 12 else 'TRUE'
-                }
-                variants.append(variant)
+            if len(fields) < width:
+                raise ValueError(
+                    f"{tsv_file}:{line_no}: expected at least {width} columns, found {len(fields)}"
+                )
+            try:
+                variants.append({
+                    'CHROM': fields[col['REGION']],
+                    'POS': int(fields[col['POS']]),
+                    'REF': fields[col['REF']],
+                    'ALT': fields[col['ALT']],
+                    'REF_DP': _count(fields[col['REF_DP']]),
+                    'ALT_DP': _count(fields[col['ALT_DP']]),
+                    'ALT_FREQ': float(fields[col['ALT_FREQ']]),
+                    'TOTAL_DP': _count(fields[col['TOTAL_DP']]),
+                    'PVAL': float(fields[col['PVAL']]),
+                    'PASS': fields[col['PASS']],
+                })
+            except ValueError as exc:
+                raise ValueError(f"{tsv_file}:{line_no}: {exc}") from None
     return variants
 
 def write_vcf_header(output_file, reference_file, sample_name):
@@ -101,7 +122,11 @@ def main():
         sys.exit(1)
 
     sample_name = os.path.splitext(os.path.basename(args.input_tsv))[0]
-    variants = parse_ivar_tsv(args.input_tsv)
+    try:
+        variants = parse_ivar_tsv(args.input_tsv)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
     convert_to_vcf(variants, args.output_vcf, args.reference_fasta, sample_name)
     print(f"Successfully converted {len(variants)} variants from {args.input_tsv} to {args.output_vcf}")
 

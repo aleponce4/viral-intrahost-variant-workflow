@@ -1,0 +1,2 @@
+Placeholder for an optional input. Nextflow needs a real file to stage when a
+optional path input is not supplied; its name NO_FILE is what the process tests.

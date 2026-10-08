@@ -1,0 +1,2 @@
+cds	seqid	start	end	strand	length	in_contig	length_mod3	no_internal_stop	internal_stop_codon	starts_atg	ends_stop
+nsP1-4	stock-test	50	7549	+	7500	pass	pass	inherited	codon 15 (TAA)	yes	no

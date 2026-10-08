@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **A primer scheme can be moved onto a stock (`--stock_primer_bed`, `bin/liftover_bed.py`)**:
+  a scheme is designed once against the lab reference, but `ivar trim` needs the coordinates of
+  whatever the reads were aligned to, and one indel between a stock and the reference shifts
+  every primer after it. `BUILD_STOCK_REFERENCE` now takes a BED in reference coordinates and
+  writes `<stock>.primers.bed` in the stock's, with `<stock>.primers_liftover.tsv` recording what
+  happened to each interval. A primer whose site the stock has deleted is dropped, not moved
+  somewhere plausible, because an amplicon that cannot be trimmed must not be trimmed wrongly.
+  The script works in either direction, so a result called on a stock can also be put back on
+  reference coordinates.
+- **One report per stock (`bin/summarize_stock_reference.py`)**: `<stock>.stock_report.md` and
+  `.tsv` gather the sequence, the distance from the lab reference, the per-CDS annotation check,
+  the primer placement and a short list of anything worth a look. It reports rather than decides;
+  the annotation check has already failed the run by this point if the transfer broke a frame.
 - **A stock consensus is oriented against the lab reference before anything reads it**
   (`STOCK_PREPARE`): an assembler has no way to know which strand a genome is meant to be read
   on and picks one per run. Two runs of the same assembly pipeline over the same stock reads gave

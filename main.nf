@@ -54,7 +54,12 @@ workflow BUILD_STOCK_REFERENCE {
         Channel.of([ [ id: 'reference' ], file(params.fasta, checkIfExists: true) ])
     )
 
-    STOCK_REFERENCE(ch_consensus, SAMTOOLS_FAIDX.out.fai, ch_ref_gff)
+    // Optional: a primer scheme in lab-reference coordinates, moved onto the stock.
+    ch_primer_bed = params.stock_primer_bed
+        ? Channel.value(file(params.stock_primer_bed, checkIfExists: true))
+        : Channel.value(file("${projectDir}/assets/NO_FILE"))
+
+    STOCK_REFERENCE(ch_consensus, SAMTOOLS_FAIDX.out.fai, ch_ref_gff, ch_primer_bed)
 
     DUMP_SOFTWARE_VERSIONS(
         STOCK_REFERENCE.out.versions

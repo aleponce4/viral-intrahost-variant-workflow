@@ -19,4 +19,6 @@ Stock reference fixtures, used by `-entry BUILD_STOCK_REFERENCE`:
 - `stock.test.paf`: `minimap2 -cx asm10 --cs` of the stock against the reference. Input to the coordinate map.
 - `stock.test.gff3`: The reference annotation carried onto the stock by Liftoff.
 
+- `stock.liftover.test.tsv`, `stock.liftover_summary.test.tsv`, `stock.annotation_check.test.tsv`, `stock.orientation.test.txt`, `stock.unmapped.test.txt`: Outputs of earlier steps, committed so the liftover-BED and report modules can be tested on their own.
+
 Fixtures are generated deterministically using `tests/data/generate_fixtures.sh`.

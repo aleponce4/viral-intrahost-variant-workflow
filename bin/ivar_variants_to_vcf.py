@@ -5,7 +5,7 @@ import argparse
 import math
 from datetime import datetime
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 # iVar variants columns this script reads, looked up by name. iVar's layout is
 # REGION POS REF ALT REF_DP REF_RV REF_QUAL ALT_DP ALT_RV ALT_QUAL ALT_FREQ
@@ -21,11 +21,30 @@ def _count(value):
     scientific notation ("1.16389e+06"), which str.isdigit() rejects."""
     return int(round(float(value)))
 
+def vcf_alleles(ref, alt):
+    """Translate iVar's REF and ALT columns into VCF alleles.
+
+    iVar writes an insertion as ALT "+TT" and a deletion as ALT "-AC". REF is
+    the single reference base at POS, and the inserted or deleted bases come
+    after it. VCF anchors both events on that base, so an insertion becomes
+    REF -> REF+TT and a deletion becomes REF+AC -> REF. Writing "+TT" into the
+    ALT column is not valid VCF and tools such as bcftools csq skip the record.
+    """
+    if alt[:1] not in ('+', '-'):
+        return ref, alt
+    bases = alt[1:]
+    if not bases or set(bases.upper()) - set('ACGTN'):
+        raise ValueError(f"cannot read iVar indel allele {alt!r}")
+    if len(ref) != 1:
+        raise ValueError(f"iVar indel {alt!r} needs a one-base REF, found {ref!r}")
+    return (ref, ref + bases) if alt[0] == '+' else (ref + bases, ref)
+
 def parse_ivar_tsv(tsv_file):
     """Parse iVar TSV file by column name and extract variant information.
 
-    Raises ValueError on a missing column or an unparseable value, so a bad
-    file stops the run instead of producing zeros.
+    REF and ALT come back as VCF alleles (see vcf_alleles). Raises ValueError
+    on a missing column or an unparseable value, so a bad file stops the run
+    instead of producing zeros.
     """
     variants = []
     with open(tsv_file, 'r', encoding='utf-8') as f:
@@ -47,11 +66,12 @@ def parse_ivar_tsv(tsv_file):
                     f"{tsv_file}:{line_no}: expected at least {width} columns, found {len(fields)}"
                 )
             try:
+                ref, alt = vcf_alleles(fields[col['REF']], fields[col['ALT']])
                 variants.append({
                     'CHROM': fields[col['REGION']],
                     'POS': int(fields[col['POS']]),
-                    'REF': fields[col['REF']],
-                    'ALT': fields[col['ALT']],
+                    'REF': ref,
+                    'ALT': alt,
                     'REF_DP': _count(fields[col['REF_DP']]),
                     'ALT_DP': _count(fields[col['ALT_DP']]),
                     'ALT_FREQ': float(fields[col['ALT_FREQ']]),

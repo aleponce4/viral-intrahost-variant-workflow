@@ -34,6 +34,27 @@ nextflow_workflow {
         then {
             assert workflow.success
             assert workflow.out.annotated_vcf != null
+
+            // The iVar fixture holds an SNV, a 1-base insertion in an AAAA run
+            // (iVar reports it at the last A, position 203) and a 3-base deletion.
+            def ivar = workflow.out.annotated_vcf.find { it[0].caller == 'ivar' }
+            assert ivar != null
+            def records = path(ivar[1]).readLines().findAll { !it.startsWith('#') }.collect { it.split('\t') }
+            assert records.size() == 3
+
+            // iVar's "+A" and "-CAG" must reach csq as valid VCF alleles.
+            assert records.every { !(it[3] + it[4]).contains('+') && !(it[3] + it[4]).contains('-') }
+
+            // The insertion is left-aligned to the base before the run, then annotated.
+            def ins = records.find { it[1] == '199' }
+            assert ins != null
+            assert ins[3] == 'T' && ins[4] == 'TA'
+            assert ins[7].contains('frameshift')
+
+            // The 3-base deletion is in frame.
+            def del = records.find { it[3] == 'ACAG' && it[4] == 'A' }
+            assert del != null
+            assert del[7].contains('inframe_deletion')
         }
 
     }

@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **iVar indels are valid VCF and left-aligned before annotation (`bin/ivar_variants_to_vcf.py`
+  1.2.0, `BCFTOOLS_CSQ`)**:
+  iVar writes an insertion as ALT `+T` and a deletion as ALT `-AC`. The converter copied that
+  into the VCF ALT column, which is not valid VCF, so `bcftools csq` could not annotate the
+  record. Both now use VCF alleles anchored on the reference base (`T` to `TT`, `AC` to `A`).
+  - iVar reports an insertion inside a homopolymer at the last base of the run, not the
+    first. On 22 of 22 real files with an insertion, `bcftools norm` moved the record. `BCFTOOLS_CSQ`
+    now adds the `##contig` lines from the FASTA index (iVar and LoFreq VCFs have none), left-aligns
+    with `bcftools norm`, then annotates. SNV records, including every LoFreq SNV, are unchanged.
+  - `tests/subworkflows/annotation` now covers an SNV, a homopolymer insertion and an in-frame
+    deletion, and asserts the left-aligned position and the consequence.
+- **LoFreq `INFO/AF` is not a VAF; iVar and LoFreq are given the same reads**:
+  - LoFreq's `AF` divides an alt count filtered at `--min-bq` by a depth with no base-quality
+    filter, so it reads low and tiered variants could land in the wrong band. Reports and
+    plots now compute the VAF from `DP4`. The columns are renamed `af_*` to `vaf_*`, and the
+    caller's own value is kept as `lofreq_info_af`. VCFs without `DP4` (the iVar route) keep `AF`,
+    which is a real base-count ratio there.
+  - iVar's `samtools mpileup` had no mapping-quality floor and left BAQ on. It now takes
+    `-B` and `-q ${params.ivar_min_mq}` (default 20, the same as `lofreq_min_mq`).
 - **iVar TSV parsed by column name, not position (`bin/ivar_variants_to_vcf.py`, 1.1.0)**:
   the parser read `ALT_DP` from the 6th column and `ALT_FREQ` from the 10th. Real iVar output
   has `REF_DP REF_RV REF_QUAL ALT_DP ALT_RV ALT_QUAL ALT_FREQ TOTAL_DP PVAL PASS`, so `ALT_DP`

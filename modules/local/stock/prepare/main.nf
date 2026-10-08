@@ -6,9 +6,11 @@ process STOCK_PREPARE {
 
     input:
     tuple val(meta), path(consensus)
+    tuple val(meta_paf), path(paf)
 
     output:
     tuple val(meta), path("${meta.id}.fasta"), path("${meta.id}.fasta.fai"), emit: fasta
+    tuple val(meta), path("${meta.id}.orientation.txt")                    , emit: orientation
     path "versions.yml"                                                    , emit: versions
 
     when:
@@ -27,7 +29,31 @@ process STOCK_PREPARE {
         exit 1
     fi
 
-    awk -v name="${prefix}" 'NR==1 { print ">" name; next } { print }' ${consensus} > ${prefix}.fasta
+    awk -v name="${prefix}" 'NR==1 { print ">" name; next } { print }' ${consensus} > renamed.fasta
+    samtools faidx renamed.fasta
+
+    # An assembler has no way to know which strand a genome is meant to be read
+    # on, and picks one per run: on the same reads, two runs of the same assembly
+    # pipeline gave opposite orientations. Left alone, half the stocks would get a
+    # reference whose genes sit on the minus strand and whose coordinates run
+    # backwards against every other stock. Take the orientation from the best
+    # alignment to the lab reference.
+    STRAND=\$(sort -k10,10nr ${paf} | head -n 1 | cut -f5)
+    if [ -z "\$STRAND" ]; then
+        echo "ERROR: ${paf} is empty; cannot tell which strand ${consensus} is on" >&2
+        exit 1
+    fi
+
+    if [ "\$STRAND" = "-" ]; then
+        samtools faidx -i renamed.fasta ${prefix} \\
+            | awk -v name="${prefix}" 'NR==1 { print ">" name; next } { print }' > ${prefix}.fasta
+        echo "reverse-complemented" > ${prefix}.orientation.txt
+    else
+        mv renamed.fasta ${prefix}.fasta
+        echo "as assembled" > ${prefix}.orientation.txt
+    fi
+
+    rm -f renamed.fasta.fai
     samtools faidx ${prefix}.fasta
 
     cat <<-END_VERSIONS > versions.yml
@@ -41,6 +67,7 @@ process STOCK_PREPARE {
     """
     touch ${prefix}.fasta
     touch ${prefix}.fasta.fai
+    touch ${prefix}.orientation.txt
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

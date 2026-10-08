@@ -21,6 +21,8 @@ samtools faidx tests/data/stock.test.fasta
 
 minimap2 -cx asm10 --cs tests/data/viral_ref.test.fasta tests/data/stock.test.fasta \
     > tests/data/stock.test.paf
+minimap2 -cx asm10 --cs tests/data/viral_ref.test.fasta tests/data/stock.rc.test.fasta \
+    > tests/data/stock.rc.test.paf
 
 liftoff -g tests/data/viral_ref.test.gff3 -o tests/data/stock.test.gff3 \
     -u tests/data/stock.unmapped.txt -dir tests/data/liftoff_intermediate \

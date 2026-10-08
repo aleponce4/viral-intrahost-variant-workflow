@@ -14,6 +14,10 @@ nextflow_process {
                     [ id: 'stock-test' ],
                     file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true)
                 ]
+                input[1] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.paf", checkIfExists: true)
+                ]
                 """
             }
         }
@@ -21,6 +25,7 @@ nextflow_process {
         then {
             assert process.success
             assert path(process.out.fasta[0][1]).exists()
+            assert path(process.out.orientation[0][1]).exists()
             assert path(process.out.versions[0]).exists()
         }
 
@@ -35,6 +40,10 @@ nextflow_process {
                     [ id: 'TC83-stock' ],
                     file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true)
                 ]
+                input[1] = [
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.test.paf", checkIfExists: true)
+                ]
                 """
             }
         }
@@ -48,13 +57,58 @@ nextflow_process {
             assert fasta[0] == '>TC83-stock'
             assert fasta.count { it.startsWith('>') } == 1
 
-            // Renaming the header must not touch a single base.
+            // The PAF says '+', so the bases must be passed through untouched.
             def original = path("${projectDir}/tests/data/stock.test.fasta").readLines()
             assert fasta[1..-1].join('') == original[1..-1].join('')
+            assert path(process.out.orientation[0][1]).text.trim() == 'as assembled'
 
             def fai = path(process.out.fasta[0][2]).readLines()[0].split('\t')
             assert fai[0] == 'TC83-stock'
             assert fai[1] == '11443'
+        }
+
+    }
+
+    test("stock_prepare - reverse-complements a consensus assembled on the minus strand") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.rc.test.fasta", checkIfExists: true)
+                ]
+                input[1] = [
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.rc.test.paf", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.orientation[0][1]).text.trim() == 'reverse-complemented'
+
+            def fasta = path(process.out.fasta[0][1]).readLines()
+            assert fasta[0] == '>TC83-stock'
+
+            // Turning it back must give exactly the sequence that went in, and
+            // the result must match the forward fixture, so the reference ends up
+            // on the same strand as the lab reference whichever way it assembled.
+            def produced = fasta[1..-1].join('').toUpperCase()
+            def input = path("${projectDir}/tests/data/stock.rc.test.fasta").readLines()[1..-1]
+                .join('').toUpperCase()
+            def forward = path("${projectDir}/tests/data/stock.test.fasta").readLines()[1..-1]
+                .join('').toUpperCase()
+
+            def complement = ['A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N']
+            def rc = { String s -> s.reverse().collect { complement[it] }.join('') }
+
+            assert produced == rc(input)
+            assert produced == forward
+
+            assert path(process.out.fasta[0][2]).readLines()[0].split('\t')[1] == '11443'
         }
 
     }
@@ -67,6 +121,10 @@ nextflow_process {
                 input[0] = [
                     [ id: 'many' ],
                     file("${projectDir}/tests/data/stock.multi.test.fasta", checkIfExists: true)
+                ]
+                input[1] = [
+                    [ id: 'many' ],
+                    file("${projectDir}/tests/data/stock.test.paf", checkIfExists: true)
                 ]
                 """
             }

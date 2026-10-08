@@ -5,7 +5,7 @@ process MINIMAP2_ALIGN {
     container "${params.container_minimap2}"
 
     input:
-    tuple val(meta), path(query), path(query_fai)
+    tuple val(meta), path(query)
     tuple val(meta_ref), path(target), path(target_fai)
 
     output:

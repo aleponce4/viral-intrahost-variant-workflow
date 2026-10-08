@@ -15,6 +15,7 @@ Stock reference fixtures, used by `-entry BUILD_STOCK_REFERENCE`:
 
 - `stock.test.fasta` / `.fai`: The test reference with one substitution (position 9000), a 2 bp insertion and a 3 bp deletion. All three sit after the CDS (50-7549), so the reading-frame checks test the annotation transfer rather than the edits.
 - `stock.multi.test.fasta`: The same sequence split in two, so a test can show that a fragmented assembly is refused rather than truncated to its first contig.
+- `stock.rc.test.fasta` / `stock.rc.test.paf`: The same stock written on the opposite strand. An assembler picks a strand per run, so a stock reference has to be oriented against the lab reference before anything reads it.
 - `stock.test.paf`: `minimap2 -cx asm10 --cs` of the stock against the reference. Input to the coordinate map.
 - `stock.test.gff3`: The reference annotation carried onto the stock by Liftoff.
 

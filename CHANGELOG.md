@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **iVar TSV parsed by column name, not position (`bin/ivar_variants_to_vcf.py`, 1.1.0)**:
+  the parser read `ALT_DP` from the 6th column and `ALT_FREQ` from the 10th. Real iVar output
+  has `REF_DP REF_RV REF_QUAL ALT_DP ALT_RV ALT_QUAL ALT_FREQ TOTAL_DP PVAL PASS`, so `ALT_DP`
+  is the 8th column and `ALT_FREQ` the 11th. Every record carried the wrong values: `ALT_QUAL`
+  was reported as `AF`, and the `ALT_FREQ` text was read as `TOTAL_DP`, which `isdigit()`
+  turned into depth 0. The columns are now looked up by header name.
+  - Depths of a million or more, which iVar prints as `1.16389e+06`, were also turned into 0.
+    They are now parsed as numbers.
+  - A missing column, a short row or an unparseable value now stops the run with the file and
+    line, instead of becoming 0 or 1.0 without a message.
+  - `tests/data/sampleA.test.ivar.tsv` used an invented column layout, which is why the old
+    indices passed CI. It now uses iVar's real header, and `tests/unit/` pins the layout. CI
+    runs the new unit tests.
 - **Fabricated report output removed (reporting integrity)**:
   - `bin/generate_run_summary.py` no longer emits a hardcoded two-row `sampleA`/`sampleB`
     `COMPLETED` table. It now derives one row per sample from the QC artefacts actually

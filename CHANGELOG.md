@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Per-stock references (`-entry BUILD_STOCK_REFERENCE`)**: turns a de novo consensus for one
+  virus stock into the `--fasta` and `--gff` of a normal run, so calls describe the variation
+  inside that stock instead of its fixed differences from a strain in GenBank.
+  - `STOCK_PREPARE` names the contig after the stock and indexes it, and refuses a multi-contig
+    assembly rather than silently using its first contig.
+  - `LIFTOFF` carries the lab annotation onto the stock. `MINIMAP2_ALIGN` aligns the two with
+    `-x asm10 --cs`.
+  - `bin/check_lifted_annotation.py` checks each CDS for coordinates inside the contig, a length
+    that is a multiple of three, and no stop codon before the end. The reference is passed as a
+    control: a problem it already has is reported as `inherited` and does not stop the run, so
+    the nsP3 opal (TGA) readthrough codon present in the lab's TC-83, VEEV INH-9813 and EEEV V105
+    references is not mistaken for a broken transfer. Start and stop codons are reported but
+    never fail, because alphavirus mature peptides are polyprotein cleavage products.
+  - `bin/build_liftover_table.py` walks the PAF `cs` tag and writes one row per alignment column,
+    so a variant called on a stock can be reported at its reference position and a
+    reference-coordinate primer BED can be placed on the stock. It refuses a reverse-strand or
+    multi-block alignment rather than mapping coordinates that cannot be mapped.
+  - New parameters `--stock_consensus` and `--stock_name`.
+
 ### Fixed
 - **iVar indels are valid VCF and left-aligned before annotation (`bin/ivar_variants_to_vcf.py`
   1.2.0, `BCFTOOLS_CSQ`)**:

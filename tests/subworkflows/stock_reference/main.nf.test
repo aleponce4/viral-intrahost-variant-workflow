@@ -1,0 +1,65 @@
+nextflow_workflow {
+
+    name "Test Subworkflow STOCK_REFERENCE"
+    script "subworkflows/local/stock_reference.nf"
+    workflow "STOCK_REFERENCE"
+
+    test("stock_reference - turns a consensus into a usable per-stock reference") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ])
+                input[2] = Channel.of([
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            // What the next pipeline run is pointed at: --fasta and --gff.
+            def fasta = path(workflow.out.fasta[0][1])
+            def gff = path(workflow.out.gff[0][1])
+            assert fasta.readLines()[0] == '>TC83-stock'
+            assert path(workflow.out.fasta[0][2]).readLines()[0].split('\t')[0] == 'TC83-stock'
+
+            // The annotation has to name the same contig as the FASTA, or
+            // bcftools csq silently annotates nothing.
+            def cds = gff.readLines()
+                .findAll { it.trim() && !it.startsWith('#') }
+                .collect { it.split('\t') }
+                .findAll { it[2] == 'CDS' }
+            assert cds.size() == 1
+            assert cds[0][0] == 'TC83-stock'
+
+            assert workflow.out.annotation_check[0][1] != null
+            assert workflow.out.unmapped[0][1] != null
+
+            // The coordinate map covers every base of both sequences, and finds
+            // the substitution, the 2 bp insertion and the 3 bp deletion that
+            // separate the fixture stock from the fixture reference.
+            def rows = path(workflow.out.liftover[0][1]).readLines()[1..-1]
+                .collect { it.split('\t') }
+            assert rows.count { it[4] == 'mismatch' } == 1
+            assert rows.count { it[4] == 'insertion' } == 2
+            assert rows.count { it[4] == 'deletion' } == 3
+            assert rows.count { it[1] != 'NA' } == 11443
+            assert rows.count { it[3] != 'NA' } == 11444
+            assert rows.every { it[0] == 'TC83-stock' }
+        }
+
+    }
+
+}

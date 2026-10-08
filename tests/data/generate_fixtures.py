@@ -63,5 +63,36 @@ def generate_ref():
                 f1.write(f"@{qname}/1\n{rseq1}\n+\n{qual}\n")
                 f2.write(f"@{qname}/2\n{rseq2}\n+\n{qual}\n")
 
+def generate_stock():
+    """A stock consensus for the BUILD_STOCK_REFERENCE entry.
+
+    It is the test reference with one substitution, a 2 bp insertion and a 3 bp
+    deletion, all placed after the CDS (50-7549) so the reading-frame checks test
+    the transfer rather than the edits. The fragmented copy exists so a test can
+    show that a multi-contig assembly is refused instead of being truncated to
+    its first contig.
+    """
+    with open("tests/data/viral_ref.test.fasta") as f:
+        seq = ''.join(line.strip() for line in f if not line.startswith('>'))
+
+    bases = list(seq)
+    bases[8999] = 'A' if bases[8999] != 'A' else 'C'
+    stock = (''.join(bases[:10000]) + 'GG'
+             + ''.join(bases[10000:10499]) + ''.join(bases[10502:]))
+
+    def write(path, records):
+        with open(path, "w", newline='\n') as out:
+            for name, s in records:
+                out.write(f">{name}\n")
+                for i in range(0, len(s), 80):
+                    out.write(s[i:i + 80] + "\n")
+
+    write("tests/data/stock.test.fasta", [("stock-test", stock)])
+    write("tests/data/stock.multi.test.fasta",
+          [("NODE_1_length_6000_cov_900", stock[:6000]),
+           ("NODE_2_length_5443_cov_880", stock[6000:])])
+
+
 if __name__ == "__main__":
     generate_ref()
+    generate_stock()

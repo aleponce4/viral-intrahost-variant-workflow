@@ -113,8 +113,10 @@ class CliTests(unittest.TestCase):
             tsv = os.path.join(d, 's1.tsv')
             ref = os.path.join(d, 'ref.fa')
             out = os.path.join(d, 's1.vcf')
-            open(tsv, 'w', encoding='utf-8').write(tsv_text)
-            open(ref, 'w', encoding='utf-8').write('>KP282671.1\nACGT\n')
+            with open(tsv, 'w', encoding='utf-8') as f:
+                f.write(tsv_text)
+            with open(ref, 'w', encoding='utf-8') as f:
+                f.write('>KP282671.1\nACGT\n')
             proc = subprocess.run(
                 [sys.executable, SCRIPT, '--input-tsv', tsv, '--output-vcf', out,
                  '--reference-fasta', ref], capture_output=True, text=True)

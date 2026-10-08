@@ -1,0 +1,72 @@
+nextflow_process {
+
+    name "Test Process MINIMAP2_ALIGN"
+    script "modules/local/minimap2/align/main.nf"
+    process "MINIMAP2_ALIGN"
+
+    test("minimap2_align - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.paf[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    test("minimap2_align - emits one PAF record carrying a cs tag") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.paf[0][1]).readLines().findAll { it.trim() }
+            assert lines.size() == 1
+
+            def fields = lines[0].split('\t')
+            assert fields[0] == 'stock-test'
+            assert fields[5] == 'KP282671.1'
+            assert fields[4] == '+'
+
+            // build_liftover_table.py walks the cs tag, so losing --cs would
+            // break the coordinate map rather than this alignment.
+            assert fields.any { it.startsWith('cs:Z:') }
+        }
+
+    }
+
+}

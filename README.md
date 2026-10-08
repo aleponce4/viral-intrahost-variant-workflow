@@ -59,6 +59,59 @@ flowchart TD
 
 ---
 
+## Characterising a virus stock against its own sequence
+
+The main workflow maps every sample to one reference. Describing what is inside a
+laboratory virus stock needs the opposite: calls against a strain from GenBank
+mix the stock's fixed differences from that strain together with the variation
+inside the stock itself. Give each stock its own reference and only the second
+is left.
+
+`-entry BUILD_STOCK_REFERENCE` turns a de novo consensus for one stock into that
+reference. Assemble the consensus first with an assembly pipeline such as
+[nf-core/viralmetagenome](https://nf-co.re/viralmetagenome), then:
+
+```bash
+nextflow run . -entry BUILD_STOCK_REFERENCE \
+  -profile docker \
+  --stock_consensus stock_consensus.fasta \
+  --stock_name TC83-stock \
+  --fasta lab_reference.fasta \
+  --gff lab_reference.gff3 \
+  --outdir ./refs
+```
+
+It names the contig after the stock and indexes it, carries the lab annotation
+across with Liftoff, checks that the transfer did not break a reading frame, and
+writes a position-by-position map back to the lab reference. Outputs land in
+`<outdir>/StockReference/<stock_name>/`:
+
+| File | Use |
+|---|---|
+| `<stock>.fasta`, `.fasta.fai` | `--fasta` for the normal run over that stock's samples |
+| `<stock>.gff3` | `--gff` for the same run |
+| `<stock>.unmapped.txt` | features Liftoff could not place; expected to be empty |
+| `qc/<stock>.annotation_check.tsv` | per-CDS frame and stop-codon checks |
+| `qc/<stock>.liftover.tsv` | every stock position against its reference position |
+
+Then run the pipeline once per stock, pointing `--fasta` and `--gff` at those two
+files. Use `qc/<stock>.liftover.tsv` to put results from different stocks on one
+coordinate system, and to place a reference-coordinate primer BED on the stock.
+
+Two details decide whether the check is meaningful:
+
+- **The reference is used as a control.** A CDS problem the lab reference already
+  has is reported as `inherited` and does not stop the run; only a problem the
+  transfer introduced does. Without that control the alphavirus nsP3 opal (TGA)
+  readthrough codon, which is present in the lab's TC-83, VEEV INH-9813 and EEEV
+  V105 references, would fail every run.
+- **Start and stop codons are informational.** The mature peptides (nsP1..nsP4,
+  Capsid, E3, E2, 6K, E1) are polyprotein cleavage products, so most begin and end
+  mid-protein. Pass `--require-start-stop` to `bin/check_lifted_annotation.py`
+  directly only when every CDS really is a standalone ORF.
+
+---
+
 ## Usage & Execution Profiles
 
 ### Samplesheet Format (`--input`)

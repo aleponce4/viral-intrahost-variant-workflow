@@ -1,0 +1,83 @@
+nextflow_process {
+
+    name "Test Process STOCK_PREPARE"
+    script "modules/local/stock/prepare/main.nf"
+    process "STOCK_PREPARE"
+
+    test("stock_prepare - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.fasta[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    test("stock_prepare - renames the contig after the stock and indexes it") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def fasta = path(process.out.fasta[0][1]).readLines()
+            // The contig name becomes the CHROM of every variant called against
+            // this reference, so it must be the stock, not the assembler's label.
+            assert fasta[0] == '>TC83-stock'
+            assert fasta.count { it.startsWith('>') } == 1
+
+            // Renaming the header must not touch a single base.
+            def original = path("${projectDir}/tests/data/stock.test.fasta").readLines()
+            assert fasta[1..-1].join('') == original[1..-1].join('')
+
+            def fai = path(process.out.fasta[0][2]).readLines()[0].split('\t')
+            assert fai[0] == 'TC83-stock'
+            assert fai[1] == '11443'
+        }
+
+    }
+
+    test("stock_prepare - refuses a multi-contig assembly") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'many' ],
+                    file("${projectDir}/tests/data/stock.multi.test.fasta", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            // A stock reference has to be one sequence. Taking the first contig
+            // of a fragmented assembly would silently drop most of the genome.
+            assert process.failed
+        }
+
+    }
+
+}

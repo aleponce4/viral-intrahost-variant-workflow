@@ -40,19 +40,38 @@ def parse_vcf(vcf_path: Path) -> list[dict]:
                 info_str = parts[7]
                 
                 dp = 0
-                af = 0.0
+                lofreq_af = 0.0
+                dp4 = None
                 for item in info_str.split(';'):
                     if item.startswith('DP=') and not item.startswith('DP4='):
                         try:
                             dp = int(item.split('=')[1])
                         except ValueError:
                             dp = 0
+                    elif item.startswith('DP4='):
+                        try:
+                            dp4 = [int(x) for x in item.split('=')[1].split(',')]
+                        except ValueError:
+                            dp4 = None
                     elif item.startswith('AF='):
                         try:
-                            af = float(item.split('=')[1].split(',')[0])
+                            lofreq_af = float(item.split('=')[1].split(',')[0])
                         except ValueError:
-                            af = 0.0
+                            lofreq_af = 0.0
                 
+                # LoFreq's INFO/AF is NOT an allele frequency. It divides an
+                # alt count filtered at --min-bq by a DP that carries no
+                # base-quality filter at all, so it reads low, and the gap grows
+                # with frequency (~3% relative in the 1-20% band, 6-20 POINTS
+                # near fixation). Tiering on it demoted real variants sitting
+                # just above a boundary. Use the DP4 base counts.
+                if dp4 and len(dp4) == 4 and sum(dp4) > 0:
+                    af = (dp4[2] + dp4[3]) / float(sum(dp4))
+                # No DP4 means this VCF came from ivar_variants_to_vcf.py, where AF
+                # IS a real alt/total base-count ratio. Only LoFreq's AF is mismatched.
+                else:
+                    af = lofreq_af
+
                 af_pct = af * 100.0
                 if af_pct >= 1.0:
                     tier = ">=1%"
@@ -68,8 +87,9 @@ def parse_vcf(vcf_path: Path) -> list[dict]:
                     'ref': ref,
                     'alt': alt,
                     'depth': dp,
-                    'af_proportion': af,
-                    'af_percent': af_pct,
+                    'vaf_proportion': af,
+                    'lofreq_info_af': lofreq_af,
+                    'vaf_percent': af_pct,
                     'tier': tier
                 })
     except Exception as e:
@@ -93,7 +113,7 @@ def generate_plots(df: pd.DataFrame, outdir: Path, dataset: str):
         sns.scatterplot(
             data=df,
             x="pos",
-            y="af_percent",
+            y="vaf_percent",
             hue="tier",
             style="sample",
             palette=palette,
@@ -105,7 +125,7 @@ def generate_plots(df: pd.DataFrame, outdir: Path, dataset: str):
         ax.set_title(f"Intra-host Variant Frequency Distribution ({dataset})", fontsize=14, fontweight="bold", pad=12)
         ax.set_xlabel("Genomic Position (bp)", fontsize=12)
         ax.set_ylabel("Allele Frequency (%)", fontsize=12)
-        ax.set_ylim(-1, max(105, df['af_percent'].max() + 5))
+        ax.set_ylim(-1, max(105, df['vaf_percent'].max() + 5))
         
         # Reference thresholds
         ax.axhline(1.0, color="#2b5c8f", linestyle="--", linewidth=1, alpha=0.7, label="1.0% Threshold")
@@ -128,7 +148,7 @@ def generate_plots(df: pd.DataFrame, outdir: Path, dataset: str):
     else:
         sns.histplot(
             data=df,
-            x="af_percent",
+            x="vaf_percent",
             bins=30,
             hue="tier",
             palette=palette,
@@ -175,7 +195,7 @@ def main():
         df.to_csv(summary_tsv_path, sep="\t", index=False)
     else:
         with summary_tsv_path.open("w", encoding="utf-8") as f:
-            f.write("sample\tchrom\tpos\tref\talt\tdepth\taf_proportion\taf_percent\ttier\n")
+            f.write("sample\tchrom\tpos\tref\talt\tdepth\tvaf_proportion\tlofreq_info_af\tvaf_percent\ttier\n")
             
     print(f"Processed {len(df)} variants across {len(vcf_files)} VCFs. Output TSV: {summary_tsv_path}")
 

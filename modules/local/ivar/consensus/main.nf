@@ -18,7 +18,7 @@ process IVAR_CONSENSUS {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    samtools mpileup -aa -A -d 0 -Q 0 --reference ${fasta} ${bam} | \\
+    samtools mpileup -aa -A -B -d 0 -q ${params.ivar_min_mq} -Q 0 --reference ${fasta} ${bam} | \\
         ivar consensus -p ${prefix}.consensus -m ${params.ivar_consensus_min_cov} -t ${params.ivar_consensus_threshold} -q ${params.ivar_min_bq}
 
     cat <<-END_VERSIONS > versions.yml

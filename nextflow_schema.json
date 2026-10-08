@@ -89,6 +89,11 @@
           "default": 30,
           "description": "Minimum base quality for iVar."
         },
+        "ivar_min_mq": {
+          "type": "integer",
+          "default": 20,
+          "description": "Minimum mapping quality for iVar's mpileup. Must match lofreq_min_mq, otherwise iVar and LoFreq are given different reads and their call sets are not comparable."
+        },
         "ivar_consensus_min_cov": {
           "type": "integer",
           "default": 10,
@@ -228,6 +233,7 @@
     "ivar_min_depth": { "$ref": "#/definitions/ivar_options/properties/ivar_min_depth" },
     "ivar_min_freq": { "$ref": "#/definitions/ivar_options/properties/ivar_min_freq" },
     "ivar_min_bq": { "$ref": "#/definitions/ivar_options/properties/ivar_min_bq" },
+    "ivar_min_mq": { "$ref": "#/definitions/ivar_options/properties/ivar_min_mq" },
     "ivar_consensus_min_cov": { "$ref": "#/definitions/ivar_options/properties/ivar_consensus_min_cov" },
     "ivar_consensus_threshold": { "$ref": "#/definitions/ivar_options/properties/ivar_consensus_threshold" },
     "lofreq_min_depth": { "$ref": "#/definitions/lofreq_options/properties/lofreq_min_depth" },

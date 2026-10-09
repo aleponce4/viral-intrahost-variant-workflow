@@ -362,6 +362,7 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
 | `--viloca_min_pair_support` | `0.80` | Minimum posterior support threshold for VILOCA linked mutation pair reporting |
 | `--viloca_min_reads` | `10.0` | Minimum read count threshold for VILOCA linked mutation pair reporting |
 | `--run_ivar` | `true` | Enable iVar subworkflow |
+| `--run_ivar_consensus` | `true` | Also run iVar consensus calling. It is a second full pileup of the BAM and nothing downstream reads it, so switch it off at full depth |
 | `--run_lofreq` | `true` | Enable LoFreq subworkflow |
 | `--run_annotation` | `true` | Enable variant functional annotation (`bcftools csq`) |
 | `--run_coverage` | `true` | Enable depth and coverage QC subworkflow |

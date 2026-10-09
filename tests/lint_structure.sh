@@ -46,6 +46,7 @@ MANDATORY_FILES=(
     "bin/check_lifted_annotation.py"
     "bin/liftover_bed.py"
     "bin/append_ref_coords.py"
+    "scripts/run_stock_workflow.sh"
     "bin/summarize_stock_reference.py"
     "bin/parse_gb_to_gff3.py"
     "bin/convert_gff3_to_gtf.py"
@@ -102,8 +103,21 @@ for file in "${MANDATORY_FILES[@]}"; do
     fi
 done
 
+# A launcher that lost its executable bit fails with "Permission denied", which looks
+# like a user error. Editors and some tools drop the bit on save.
+EXECUTABLE_FILES=(
+    "scripts/run_stock_workflow.sh"
+)
+
+for file in "${EXECUTABLE_FILES[@]}"; do
+    if [ -f "$file" ] && [ ! -x "$file" ]; then
+        echo "NOT EXECUTABLE: $file (run: git update-index --chmod=+x $file)"
+        ERRORS=$((ERRORS + 1))
+    fi
+done
+
 if [ "$ERRORS" -gt 0 ]; then
-    echo "STRUCTURE LINT FAILED ($ERRORS missing files)"
+    echo "STRUCTURE LINT FAILED ($ERRORS problem(s))"
     exit 1
 fi
 

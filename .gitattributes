@@ -19,6 +19,7 @@ assets/** linguist-vendored
 *.vcf    text eol=lf
 *.tsv    text eol=lf
 *.sam    text eol=lf
+*.sh     text eol=lf
 
 # Binary formats, so git never rewrites a byte.
 *.bam    binary

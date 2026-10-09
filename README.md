@@ -37,7 +37,8 @@ flowchart TD
 
 ## Quick Start
 
-1. **Install Nextflow** (≥24.04.0) and **Docker** (or Singularity/Apptainer):
+1. **Install Nextflow** (≥24.04.0) and a container engine: **Docker**, **Apptainer** or
+   **Singularity**. Choose it with `-profile docker`, `-profile apptainer` or `-profile singularity`:
    ```bash
    curl -s https://get.nextflow.io | bash
    ```
@@ -66,6 +67,48 @@ laboratory virus stock needs the opposite: calls against a strain from GenBank
 mix the stock's fixed differences from that strain together with the variation
 inside the stock itself. Give each stock its own reference and only the second
 is left.
+
+### Run it all with one command
+
+`scripts/run_stock_workflow.sh` runs the three steps below for one stock: Stage A, the
+stock reference, then variant calling. Each step is its own Nextflow run in its own
+directory under `--outdir`, and every run uses `-resume`, so running the same command
+again after a failure picks up where it stopped.
+
+```bash
+scripts/run_stock_workflow.sh \
+  --stock my_stock \
+  --stock-reads my_R1.fastq.gz my_R2.fastq.gz \
+  --reference-pool reference_pool.fasta \
+  --lab-fasta lab_reference.fasta --lab-gff lab_reference.gff3 \
+  --samples samplesheet.csv \
+  --outdir my_stock_run \
+  --profile apptainer
+```
+
+| Where | What |
+|---|---|
+| `my_stock_run/stage_a/results/` | nf-core/viralmetagenome output, including the consensus |
+| `my_stock_run/reference/results/StockReference/my_stock/` | the stock reference and its liftover table |
+| `my_stock_run/variants/results/` | the variant calls, with lab-reference coordinates added |
+| `my_stock_run/stock_run.log` | the exact commands and the Nextflow versions used |
+
+- `--samples` is the ordinary samplesheet of the samples that belong to this stock.
+- `--dry-run` prints the three commands and runs nothing.
+- `--step stage-a`, `reference` or `variants` runs one step alone.
+- Stage A is optional. Pass `--consensus my_consensus.fasta` to use a consensus you already
+  have, and Stage A is skipped.
+- `--primer-bed` takes a primer scheme in lab-reference coordinates. It is moved onto the
+  stock, and the variant run switches to `--protocol amplicon`.
+- `--profile` picks the container engine: `docker` (default), `apptainer` or `singularity`.
+  Set `STOCK_WORKFLOW_PROFILE` once to change the default for your site. With Apptainer or
+  Singularity, set `NXF_APPTAINER_CACHEDIR` or `NXF_SINGULARITY_CACHEDIR` so images are
+  pulled once.
+- `--config` adds a Nextflow config to every step, for example resource limits.
+- Stage A and the other two steps may need different Nextflow versions. Point
+  `NXF_STAGE_A` and `NXF_STAGE_B` at the binaries to use. Both default to `nextflow`.
+
+The sections below explain each step and how to run it by hand.
 
 ### Stage A: assemble the consensus
 

@@ -76,6 +76,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `skip_*` flags) existed only in a local run script. They are now a params file with the
   reason for each setting in the README. Documentation and one data file; no code changes.
 
+- **One command for the whole stock workflow (`scripts/run_stock_workflow.sh`)**: chains
+  Stage A (nf-core/viralmetagenome 1.2.0), `BUILD_STOCK_REFERENCE` and the main workflow for
+  one stock. They stay three separate Nextflow runs, each in its own directory, joined by
+  files, so each keeps its own work directory and `-resume`. The script finds the consensus
+  Stage A wrote, hands it on, and passes the stock reference and its liftover table to the
+  variant run. Stage A is optional: `--consensus` skips it, and `--step` runs one step. The
+  other options are `--primer-bed`, `--profile`, `--config` and `--dry-run`. It writes the
+  commands and the Nextflow versions to `stock_run.log`. `NXF_STAGE_A` and `NXF_STAGE_B` pick
+  the Nextflow binary per stage, because the pilot ran the two under different versions.
+- **`apptainer` and `singularity` profiles**: Apptainer used to need a local override config
+  on top of `-profile docker`. `-profile apptainer` and `-profile singularity` now work for
+  every entry point, and CI parses both.
+
 ### Fixed
 - **iVar indels are valid VCF and left-aligned before annotation (`bin/ivar_variants_to_vcf.py`
   1.2.0, `BCFTOOLS_CSQ`)**:

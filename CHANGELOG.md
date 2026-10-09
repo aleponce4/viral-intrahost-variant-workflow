@@ -94,6 +94,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on top of `-profile docker`. `-profile apptainer` and `-profile singularity` now work for
   every entry point, and CI parses both.
 
+- **The stock workflow is in the diagrams**: the README overview and `ARCHITECTURE.md` now show
+  Stage A, `BUILD_STOCK_REFERENCE` with its steps, the launcher, and where the reference
+  coordinates and the primer BED attach. Documentation only. The diagrams were checked with
+  Mermaid's own parser.
+
 ### Fixed
 - **iVar indels are valid VCF and left-aligned before annotation (`bin/ivar_variants_to_vcf.py`
   1.2.0, `BCFTOOLS_CSQ`)**:

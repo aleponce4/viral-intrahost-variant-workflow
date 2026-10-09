@@ -4,7 +4,7 @@
 ![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A524.04.0-brightgreen)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-Containerized Nextflow DSL2 workflow for viral intra-host variant calling (iSNV), quasispecies haplotype reconstruction, and evolutionary selection analysis.
+Containerized Nextflow DSL2 workflow for viral intra-host variant calling (iSNV), quasispecies haplotype reconstruction, and evolutionary selection analysis. It can also start from a virus stock's own reads: a de novo consensus (nf-core/viralmetagenome), a per-stock reference, then variants called against it.
 
 > [!NOTE]
 > **Note on Organism Compatibility**: Although named and validated on Alphavirus datasets (VEEV, EEEV), the pipeline engine is virus-agnostic. It processes any haploid viral genome given a valid reference FASTA and GFF3 annotation file.
@@ -19,6 +19,31 @@ There are two ways in:
 ---
 
 ## Architecture Overview
+
+### Stock workflow: from a stock's reads to variants
+
+```mermaid
+flowchart TD
+    subgraph LAUNCH["scripts/run_stock_workflow.sh: one command, three Nextflow runs"]
+        SA["Stage A: nf-core/viralmetagenome 1.2.0<br/>de novo assembly, scaffolding,<br/>iterative consensus<br/>optional: --consensus skips it"]
+        BR["BUILD_STOCK_REFERENCE<br/>orient, name the contig, Liftoff annotation,<br/>reading-frame check, liftover table"]
+        MW["Main workflow (diagram below)<br/>run on the stock reference"]
+        SA -->|consensus FASTA| BR
+        BR -->|stock FASTA and GFF3| MW
+    end
+    READS["stock reads (FASTQ)"] --> SA
+    POOL["reference pool (FASTA)"] --> SA
+    LAB["lab reference FASTA and GFF3"] --> BR
+    SAMPLES["samplesheet.csv<br/>the samples of this stock"] --> MW
+    BR -.->|"liftover table (--liftover_tsv)"| MW
+    MW --> OUT["variants, reports, and calls on<br/>lab-reference coordinates"]
+```
+
+Run the whole chain with the launcher, or run each part yourself (see
+[Characterising a virus stock](#characterising-a-virus-stock-against-its-own-sequence)).
+The main workflow also runs alone, against any reference.
+
+### Main workflow
 
 ```mermaid
 flowchart TD

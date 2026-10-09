@@ -19,6 +19,8 @@ STAGE_A_PARAMS="${REPO_ROOT}/assets/stage_a_viralmetagenome.params.yaml"
 
 NXF_STAGE_A="${NXF_STAGE_A:-nextflow}"
 NXF_STAGE_B="${NXF_STAGE_B:-nextflow}"
+NXF_STAGE_A_JAVA_HOME="${NXF_STAGE_A_JAVA_HOME:-}"
+NXF_STAGE_B_JAVA_HOME="${NXF_STAGE_B_JAVA_HOME:-}"
 
 usage() {
     cat <<'EOF'
@@ -59,6 +61,10 @@ Environment
   STOCK_WORKFLOW_PROFILE     Default for --profile, so a site sets it once.
   NXF_STAGE_A, NXF_STAGE_B   The Nextflow binary for Stage A and for the other two steps.
                              Default: nextflow. Use these when the two need different versions.
+  NXF_STAGE_A_JAVA_HOME, NXF_STAGE_B_JAVA_HOME
+                             A Java installation for that stage only (sets NXF_JAVA_HOME for
+                             its runs). Stage A needs Java 17 or newer, because its nf-schema
+                             plugin is built for it.
 
 Steps that finished are reused, because every run passes -resume. Re-running the same
 command after a failure picks up where it stopped.
@@ -168,6 +174,12 @@ LOG="${OUTDIR}/stock_run.log"
 CONFIG_ARGS=()
 [ -z "$CONFIG" ] || CONFIG_ARGS=(-c "$CONFIG")
 
+# A stage may need its own Java, so its command can start with `env NXF_JAVA_HOME=...`.
+PREFIX_A=()
+[ -z "$NXF_STAGE_A_JAVA_HOME" ] || PREFIX_A=(env "NXF_JAVA_HOME=${NXF_STAGE_A_JAVA_HOME}")
+PREFIX_B=()
+[ -z "$NXF_STAGE_B_JAVA_HOME" ] || PREFIX_B=(env "NXF_JAVA_HOME=${NXF_STAGE_B_JAVA_HOME}")
+
 # --- helpers -----------------------------------------------------------------
 quote_cmd() { printf '%q ' "$@"; printf '\n'; }
 
@@ -178,7 +190,11 @@ log() {
 }
 
 nxf_version() {
-    "$1" -version 2>/dev/null | grep -i 'version' | head -n 1 | sed 's/^ *//' || true
+    if [ -n "$2" ]; then
+        NXF_JAVA_HOME="$2" "$1" -version 2>/dev/null | grep -i 'version' | head -n 1 | sed 's/^ *//' || true
+    else
+        "$1" -version 2>/dev/null | grep -i 'version' | head -n 1 | sed 's/^ *//' || true
+    fi
 }
 
 # The one consensus Stage A wrote for this stock. Stage A names its output by the sample
@@ -237,7 +253,8 @@ if [ "$RUN_A" -eq 1 ]; then
         printf 'sample,fastq_1,fastq_2\n%s,%s,%s\n' "$STOCK" "$READS_1" "$READS_2" > "${A_DIR}/samplesheet.csv"
     fi
 
-    stage_a_cmd=("$NXF_STAGE_A" run nf-core/viralmetagenome -r "$VMG_REVISION" -profile "$PROFILE")
+    stage_a_cmd=("${PREFIX_A[@]+"${PREFIX_A[@]}"}" "$NXF_STAGE_A" run nf-core/viralmetagenome
+                 -r "$VMG_REVISION" -profile "$PROFILE")
     stage_a_cmd+=("${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"}")
     stage_a_cmd+=(-params-file "$STAGE_A_PARAMS" --input "${A_DIR}/samplesheet.csv"
                   --reference_pool "$POOL" --outdir "$A_OUT" -resume)
@@ -246,7 +263,7 @@ if [ "$RUN_A" -eq 1 ]; then
         stage_a_cmd+=("${extra_a[@]}")
     fi
     if [ "$DRY_RUN" -eq 0 ]; then
-        log "Stage A nextflow: $(nxf_version "$NXF_STAGE_A")"
+        log "Stage A nextflow: $(nxf_version "$NXF_STAGE_A" "$NXF_STAGE_A_JAVA_HOME")"
     fi
     run_step "Stage A: de novo consensus" "$A_DIR" "${stage_a_cmd[@]}"
 fi
@@ -261,13 +278,14 @@ if [ "$RUN_REF" -eq 1 ]; then
         CONSENSUS="$(find_consensus)" || exit 2
     fi
 
-    ref_cmd=("$NXF_STAGE_B" run "$REPO_ROOT" -entry BUILD_STOCK_REFERENCE -profile "$PROFILE")
+    ref_cmd=("${PREFIX_B[@]+"${PREFIX_B[@]}"}" "$NXF_STAGE_B" run "$REPO_ROOT"
+             -entry BUILD_STOCK_REFERENCE -profile "$PROFILE")
     ref_cmd+=("${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"}")
     ref_cmd+=(--stock_consensus "$CONSENSUS" --stock_name "$STOCK" --fasta "$LAB_FASTA" --gff "$LAB_GFF")
     [ -z "$PRIMER_BED" ] || ref_cmd+=(--stock_primer_bed "$PRIMER_BED")
     ref_cmd+=(--outdir "${REF_DIR}/results" -resume)
     if [ "$DRY_RUN" -eq 0 ]; then
-        log "Stage B nextflow: $(nxf_version "$NXF_STAGE_B")"
+        log "Stage B nextflow: $(nxf_version "$NXF_STAGE_B" "$NXF_STAGE_B_JAVA_HOME")"
     fi
     run_step "Stock reference" "$REF_DIR" "${ref_cmd[@]}"
 fi
@@ -283,7 +301,7 @@ if [ "$RUN_VAR" -eq 1 ]; then
         fi
     fi
 
-    var_cmd=("$NXF_STAGE_B" run "$REPO_ROOT" -profile "$PROFILE")
+    var_cmd=("${PREFIX_B[@]+"${PREFIX_B[@]}"}" "$NXF_STAGE_B" run "$REPO_ROOT" -profile "$PROFILE")
     var_cmd+=("${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"}")
     var_cmd+=(--input "$SAMPLES" --fasta "$REF_FASTA" --gff "$REF_GFF"
               --viral_contig "$STOCK" --dataset "$STOCK" --liftover_tsv "$REF_LIFTOVER")

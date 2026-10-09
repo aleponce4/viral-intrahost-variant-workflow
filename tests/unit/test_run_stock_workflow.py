@@ -19,8 +19,8 @@ STAGE_A_PARAMS = os.path.join(REPO, 'assets', 'stage_a_viralmetagenome.params.ya
 
 FAKE_NEXTFLOW = r"""#!/usr/bin/env bash
 tag="@TAG@"
-if [ "$1" = "-version" ]; then echo "      version 99.${tag}.0 build 1"; exit 0; fi
-printf '%s|%s|%s\n' "$tag" "$PWD" "$*" >> "$FAKE_LOG"
+if [ "$1" = "-version" ]; then echo "      version 99.${tag}.0 build 1 (java ${NXF_JAVA_HOME:-default})"; exit 0; fi
+printf '%s|%s|%s|%s\n' "$tag" "$PWD" "${NXF_JAVA_HOME:-unset}" "$*" >> "$FAKE_LOG"
 args=("$@")
 outdir=""; stock=""; primer=""; input=""
 for ((i = 0; i < ${#args[@]}; i++)); do
@@ -75,6 +75,7 @@ class LauncherTests(unittest.TestCase):
     def run_launcher(self, *args, env=None):
         e = dict(os.environ, NXF_STAGE_A=self.fake_a, NXF_STAGE_B=self.fake_b,
                  FAKE_LOG=self.log)
+        e.pop('NXF_JAVA_HOME', None)
         e.update(env or {})
         return subprocess.run(['bash', SCRIPT, *args], capture_output=True, text=True,
                               env=e, cwd=self.dir)
@@ -90,8 +91,8 @@ class LauncherTests(unittest.TestCase):
         if not os.path.exists(self.log):
             return []
         with open(self.log, encoding='utf-8') as f:
-            rows = [line.rstrip('\n').split('|', 2) for line in f if line.strip()]
-        return [{'tag': t, 'cwd': c, 'args': a} for t, c, a in rows]
+            rows = [line.rstrip('\n').split('|', 3) for line in f if line.strip()]
+        return [{'tag': t, 'cwd': c, 'java': j, 'args': a} for t, c, j, a in rows]
 
     def stock_ref(self, *parts):
         return os.path.join(self.out, 'reference', 'results', 'StockReference', 's1', *parts)
@@ -197,6 +198,29 @@ class LauncherTests(unittest.TestCase):
         self.run_launcher(*self.full('--profile', 'singularity'),
                           env={'STOCK_WORKFLOW_PROFILE': 'apptainer'})
         self.assertTrue(all('-profile singularity' in c['args'] for c in self.calls()))
+
+    def test_stage_a_can_have_its_own_java(self):
+        self.run_launcher(*self.full(), env={'NXF_STAGE_A_JAVA_HOME': '/opt/jdk17'})
+        a, ref, var = self.calls()
+        self.assertEqual(a['java'], '/opt/jdk17')
+        self.assertEqual((ref['java'], var['java']), ('unset', 'unset'))
+
+    def test_the_other_steps_can_have_their_own_java(self):
+        self.run_launcher(*self.full(), env={'NXF_STAGE_B_JAVA_HOME': '/opt/jdk21'})
+        a, ref, var = self.calls()
+        self.assertEqual(a['java'], 'unset')
+        self.assertEqual((ref['java'], var['java']), ('/opt/jdk21', '/opt/jdk21'))
+
+    def test_the_log_records_which_java_each_stage_used(self):
+        self.run_launcher(*self.full(), env={'NXF_STAGE_A_JAVA_HOME': '/opt/jdk17'})
+        with open(os.path.join(self.out, 'stock_run.log'), encoding='utf-8') as f:
+            text = f.read()
+        self.assertIn('Stage A nextflow: version 99.A.0 build 1 (java /opt/jdk17)', text)
+        self.assertIn('Stage B nextflow: version 99.B.0 build 1 (java default)', text)
+
+    def test_a_dry_run_shows_the_java_setting(self):
+        result = self.run_launcher(*self.full('--dry-run'), env={'NXF_STAGE_A_JAVA_HOME': '/opt/jdk17'})
+        self.assertIn('env NXF_JAVA_HOME=/opt/jdk17 ', result.stdout)
 
     def test_a_single_step_runs_alone(self):
         result = self.run_launcher(*self.full('--step', 'stage-a'))

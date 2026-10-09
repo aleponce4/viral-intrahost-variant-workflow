@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **LoFreq strand-bias filter (`--lofreq_sb_thresh`, default 60)**: `LOFREQ_FILTER` now passes
+  `--sb-thresh` to `lofreq filter`. LoFreq drops a call only when its strand-bias phred value
+  exceeds the threshold and about 85% of its alt bases sit on one strand. In the TC-83 pilot, calls
+  below 0.5% frequency carried a mean strand-bias phred of 144.5, so they were artifacts. Set the
+  parameter to 0 to turn the filter off. **The default changes results**: runs that used the old
+  quality-only filter can lose strand-biased low-frequency calls. The threshold used is written to
+  `<sample>.qc_stats.txt`.
 - **A primer scheme can be moved onto a stock (`--stock_primer_bed`, `bin/liftover_bed.py`)**:
   a scheme is designed once against the lab reference, but `ivar trim` needs the coordinates of
   whatever the reads were aligned to, and one indel between a stock and the reference shifts

@@ -50,4 +50,52 @@ nextflow_process {
 
     }
 
+    test("lofreq_filter - strand bias threshold is applied") {
+
+        when {
+            params {
+                lofreq_sb_thresh = 60
+            }
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.test.vcf", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.vcf[0][1]).exists()
+            assert path(process.out.qc_stats[0][1]).text.contains("Strand-bias phred threshold: 60")
+        }
+
+    }
+
+    test("lofreq_filter - strand bias filter can be disabled") {
+
+        when {
+            params {
+                lofreq_sb_thresh = 0
+            }
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.test.vcf", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.vcf[0][1]).exists()
+            assert path(process.out.qc_stats[0][1]).text.contains("Strand-bias phred threshold: disabled")
+        }
+
+    }
+
 }

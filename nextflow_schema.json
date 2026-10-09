@@ -159,9 +159,9 @@
         },
         "lofreq_sb_thresh": {
           "type": "integer",
-          "default": 60,
+          "default": 0,
           "minimum": 0,
-          "description": "Fixed strand-bias phred cutoff passed to lofreq filter as --sb-thresh, used in place of LoFreq's built-in FDR rule. 0 keeps the built-in rule. Either rule also requires about 85% of the alt reads to sit on one strand before it drops a call."
+          "description": "Fixed strand-bias phred cutoff passed to lofreq filter as --sb-thresh, used in place of LoFreq's built-in FDR rule. 0 (the default) keeps the built-in rule. Either rule also requires about 85% of the alt reads to sit on one strand before it drops a call."
         }
       }
     },

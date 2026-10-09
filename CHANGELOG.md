@@ -8,12 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Strand-bias rule for `lofreq filter` is configurable (`--lofreq_sb_thresh`, default 60)**:
-  `LOFREQ_FILTER` passes `--sb-thresh` to `lofreq filter`. That replaces LoFreq's built-in
-  strand-bias rule, an FDR test, with a fixed phred cutoff. `0` leaves the built-in rule in place.
-  Either rule drops a call only when about 85% of its alt reads also sit on one strand. On the
-  TC-83 stock data (full depth, 2 million pairs and 200,000 pairs) neither the built-in rule nor any
-  cutoff from 100 down to 40 removed a call, so the default does not change those results. High
+- **Strand-bias rule for `lofreq filter` is configurable (`--lofreq_sb_thresh`, default 0)**:
+  `LOFREQ_FILTER` passes `--sb-thresh` to `lofreq filter` when the value is above 0. That replaces
+  LoFreq's built-in strand-bias rule, an FDR test, with a fixed phred cutoff. The default, `0`,
+  keeps the built-in rule, so results are the same as before this parameter existed. Either rule
+  drops a call only when about 85% of its alt reads also sit on one strand. On the TC-83 stock
+  data (full depth, 2 million pairs and 200,000 pairs) neither the built-in rule nor any cutoff
+  from 100 down to 40 removed a call, so a fixed cutoff is not needed there. High
   strand-bias values are common there and grow with depth (4 of 124 calls above 60 at 200,000 pairs,
   145 of 516 at 2 million, 1,156 of 2,369 at full depth), but none of those calls had 85% of its alt
   reads on one strand. The rule in use is written to `<sample>.qc_stats.txt`.

@@ -317,7 +317,7 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
 | `--lofreq_min_bq` | `30` | Minimum base quality for LoFreq |
 | `--lofreq_min_mq` | `20` | Minimum mapping quality for LoFreq |
 | `--lofreq_sig` | `0.01` | LoFreq significance threshold |
-| `--lofreq_sb_thresh` | `60` | Maximum strand-bias phred value a LoFreq call may carry (`0` turns the filter off) |
+| `--lofreq_sb_thresh` | `60` | Fixed strand-bias phred cutoff for `lofreq filter`, used in place of LoFreq's built-in rule (`0` keeps the built-in rule). Either rule also needs about 85% of a call's alt reads on one strand |
 | `--lofreq_enable_indelqual` | `false` | Enable LoFreq indel quality assessment |
 | `--lofreq_enable_baq` | `false` | Enable LoFreq base alignment quality (BAQ) |
 | `--liftover_tsv` | `null` | `qc/<stock>.liftover.tsv` from `BUILD_STOCK_REFERENCE`; adds lab-reference coordinates to annotated VCFs and the variant table |

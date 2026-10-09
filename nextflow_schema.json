@@ -161,7 +161,7 @@
           "type": "integer",
           "default": 60,
           "minimum": 0,
-          "description": "Maximum strand-bias phred value a variant may carry (lofreq filter --sb-thresh). LoFreq's compound filter also requires ~85% of the alt bases to sit on one strand before it drops a call. Set to 0 to disable."
+          "description": "Fixed strand-bias phred cutoff passed to lofreq filter as --sb-thresh, used in place of LoFreq's built-in FDR rule. 0 keeps the built-in rule. Either rule also requires about 85% of the alt reads to sit on one strand before it drops a call."
         }
       }
     },

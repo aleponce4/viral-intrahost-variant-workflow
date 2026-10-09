@@ -74,7 +74,7 @@ nextflow_process {
 
     }
 
-    test("lofreq_filter - strand bias filter can be disabled") {
+    test("lofreq_filter - 0 keeps LoFreq's built-in strand-bias rule") {
 
         when {
             params {
@@ -93,7 +93,7 @@ nextflow_process {
         then {
             assert process.success
             assert path(process.out.vcf[0][1]).exists()
-            assert path(process.out.qc_stats[0][1]).text.contains("Strand-bias phred threshold: disabled")
+            assert path(process.out.qc_stats[0][1]).text.contains("Strand-bias phred threshold: LoFreq built-in (FDR)")
         }
 
     }

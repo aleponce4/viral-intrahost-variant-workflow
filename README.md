@@ -9,6 +9,13 @@ Containerized Nextflow DSL2 workflow for viral intra-host variant calling (iSNV)
 > [!NOTE]
 > **Note on Organism Compatibility**: Although named and validated on Alphavirus datasets (VEEV, EEEV), the pipeline engine is virus-agnostic. It processes any haploid viral genome given a valid reference FASTA and GFF3 annotation file.
 
+There are two ways in:
+
+- **`nextflow run .`** calls variants in samples against one reference. See [Quick Start](#quick-start).
+- **`scripts/run_stock_workflow.sh`** characterises a virus stock from its own reads: a de novo
+  consensus, a per-stock reference, then variants against it, in one command. See
+  [Characterising a virus stock](#characterising-a-virus-stock-against-its-own-sequence).
+
 ---
 
 ## Architecture Overview
@@ -56,6 +63,12 @@ flowchart TD
      --fasta reference.fasta \
      --gff reference.gff3 \
      --outdir ./results
+   ```
+
+4. **Characterise a virus stock from its own reads** (de novo consensus, stock reference,
+   variants). The options are listed by:
+   ```bash
+   scripts/run_stock_workflow.sh --help
    ```
 
 ---
@@ -107,6 +120,10 @@ scripts/run_stock_workflow.sh \
 - `--config` adds a Nextflow config to every step, for example resource limits.
 - Stage A and the other two steps may need different Nextflow versions. Point
   `NXF_STAGE_A` and `NXF_STAGE_B` at the binaries to use. Both default to `nextflow`.
+- Stage A needs Java 17 or newer, because its `nf-schema` plugin is built for it. Under Java 11
+  it stops at start-up with a class-file version error. If your default Java is older, set
+  `NXF_STAGE_A_JAVA_HOME` to a Java 17 installation. `NXF_STAGE_B_JAVA_HOME` does the same for
+  the other two steps. Each applies to its own steps only.
 
 The sections below explain each step and how to run it by hand.
 

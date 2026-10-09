@@ -83,8 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Stage A wrote, hands it on, and passes the stock reference and its liftover table to the
   variant run. Stage A is optional: `--consensus` skips it, and `--step` runs one step. The
   other options are `--primer-bed`, `--profile`, `--config` and `--dry-run`. It writes the
-  commands and the Nextflow versions to `stock_run.log`. `NXF_STAGE_A` and `NXF_STAGE_B` pick
-  the Nextflow binary per stage, because the pilot ran the two under different versions.
+  commands and the Nextflow and Java versions to `stock_run.log`. `NXF_STAGE_A` and `NXF_STAGE_B`
+  pick the Nextflow binary per stage, because the pilot ran the two under different versions.
+  `NXF_STAGE_A_JAVA_HOME` and `NXF_STAGE_B_JAVA_HOME` do the same for Java, because Stage A
+  needs Java 17 or newer and the rest of the pipeline does not.
 - **`apptainer` and `singularity` profiles**: Apptainer used to need a local override config
   on top of `-profile docker`. `-profile apptainer` and `-profile singularity` now work for
   every entry point, and CI parses both.

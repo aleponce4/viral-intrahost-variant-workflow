@@ -46,6 +46,8 @@ nextflow_process {
             assert path(process.out.vcf[0][2]).exists()
             assert path(process.out.qc_stats[0][1]).exists()
             assert path(process.out.versions[0]).exists()
+            // The default keeps LoFreq's own strand-bias rule.
+            assert path(process.out.qc_stats[0][1]).text.contains("Strand-bias phred threshold: LoFreq built-in (FDR)")
         }
 
     }

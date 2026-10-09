@@ -1,0 +1,23 @@
+# Fixed settings for Stage A: nf-core/viralmetagenome 1.2.0 on a purified-virus
+# shotgun stock. These are the settings used for the TC-83 stock pilot.
+#
+#   nextflow run nf-core/viralmetagenome -r 1.2.0 -profile docker \
+#     -params-file assets/stage_a_viralmetagenome.params.yaml \
+#     --input stock_samplesheet.csv --reference_pool reference_pool.fasta --outdir stage_a
+#
+# The reason for each setting is in README.md, section "Stage A: assemble the consensus".
+
+# Purified virus has almost no host, so these steps only add run time.
+skip_hostremoval: true
+skip_read_classification: true
+skip_precluster: true
+skip_checkv: true
+skip_consensus_annotation: true
+skip_prokka: true
+
+# An 11 kb genome has about 11,000 possible read starts, so at high depth most reads
+# look like duplicates and are not.
+deduplicate: false
+
+# Normalise reads for assembly only. Remapping still uses the full-depth reads.
+normalise_reads: true

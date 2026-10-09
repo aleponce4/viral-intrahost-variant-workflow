@@ -18,6 +18,7 @@ MANDATORY_FILES=(
     "assets/samplesheet.test.csv"
     "assets/schema_input.json"
     "assets/multiqc_config.yml"
+    "assets/stage_a_viralmetagenome.params.yaml"
     "assets/executive_report.qmd"
     "assets/snpgenie/PINNED_COMMIT"
     "assets/snpgenie/checksums.sha256"

@@ -69,6 +69,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1,981 iVar calls that received a position carried the same REF base as the lab reference
   at that position; 6 iVar poly-A calls past the aligned block were `unmapped`.
 
+- **The Stage A recipe is in the repository (`assets/stage_a_viralmetagenome.params.yaml`,
+  README "Stage A")**: the stock workflow starts from a de novo consensus built by
+  nf-core/viralmetagenome 1.2.0, which this repository does not contain. The settings that
+  decide whether that consensus is usable (`deduplicate: false`, `normalise_reads: true`, the
+  `skip_*` flags) existed only in a local run script. They are now a params file with the
+  reason for each setting in the README. Documentation and one data file; no code changes.
+
 ### Fixed
 - **iVar indels are valid VCF and left-aligned before annotation (`bin/ivar_variants_to_vcf.py`
   1.2.0, `BCFTOOLS_CSQ`)**:

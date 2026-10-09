@@ -67,9 +67,51 @@ mix the stock's fixed differences from that strain together with the variation
 inside the stock itself. Give each stock its own reference and only the second
 is left.
 
+### Stage A: assemble the consensus
+
+This repository does not contain Stage A. It uses
+[nf-core/viralmetagenome](https://nf-co.re/viralmetagenome) 1.2.0 unchanged. The
+settings below were validated on a purified-virus shotgun stock and are kept in
+`assets/stage_a_viralmetagenome.params.yaml`. The samplesheet has one row per stock:
+
+```csv
+sample,fastq_1,fastq_2
+my_stock,my_stock_R1.fastq.gz,my_stock_R2.fastq.gz
+```
+
+```bash
+nextflow run nf-core/viralmetagenome -r 1.2.0 -profile docker \
+  -params-file assets/stage_a_viralmetagenome.params.yaml \
+  --input stock_samplesheet.csv \
+  --reference_pool reference_pool.fasta \
+  --outdir stage_a
+```
+
+Why these settings:
+
+- **`deduplicate: false`.** An 11 kb genome has about 11,000 possible read starts. At high
+  depth most reads share a start and are not duplicates. In this lab's RNA-seq data,
+  MarkDuplicates flagged 62 to 82% of viral reads at over 100,000x.
+- **`normalise_reads: true`.** On a 2 million pair test of an 11.4 kb alphavirus stock it gave
+  one contig with no Ns. Without it the consensus ran about 700 bp too long and contained Ns.
+  It affects assembly only. Remapping and the variant calls use the full-depth reads.
+- **The `skip_*` flags.** Host removal, read classification, preclustering, CheckV, consensus
+  annotation and Prokka are skipped because purified virus has almost no host. Turn host
+  removal on when the host fraction is high.
+- **The reference pool** is a FASTA of related genomes that the assembly is scaffolded
+  against. The test used five alphavirus genomes and left out the stock's own strain.
+
+Hand `consensus/seq/variant-calling/<stock>/<stock>_*.consensus.fasta` to
+`--stock_consensus` below.
+
+Amplicon data is untested. The validation data was shotgun. For amplicon stocks, trim primers with
+cutadapt before building the samplesheet, because viralmetagenome has no primer options and
+the consensus at a primer site would otherwise reflect the primer.
+
+### Glue: build the stock reference
+
 `-entry BUILD_STOCK_REFERENCE` turns a de novo consensus for one stock into that
-reference. Assemble the consensus first with an assembly pipeline such as
-[nf-core/viralmetagenome](https://nf-co.re/viralmetagenome), then:
+reference. Give it the Stage A consensus:
 
 ```bash
 nextflow run . -entry BUILD_STOCK_REFERENCE \

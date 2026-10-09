@@ -31,6 +31,45 @@ nextflow_workflow {
             assert workflow.success
             assert workflow.out.viral_bams != null
             assert workflow.out.lofreq_vcf != null
+            // By default both iVar passes run.
+            assert workflow.out.ivar_tsv.size() == 1
+            assert workflow.out.ivar_consensus.size() == 1
+        }
+
+    }
+
+    test("variant_calling - the iVar consensus pass can be switched off") {
+
+        when {
+            params {
+                run_ivar_consensus = false
+            }
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'sampleA', condition: 'infected', dpi: '3' ],
+                    file("${projectDir}/tests/data/sampleA.test.bam", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.bam.bai", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ])
+                input[2] = Channel.of([
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            // The variant pass and LoFreq still run. Only the consensus pass is gone.
+            assert workflow.out.ivar_tsv.size() == 1
+            assert workflow.out.lofreq_vcf.size() == 1
+            assert workflow.out.ivar_consensus.size() == 0
         }
 
     }

@@ -215,6 +215,11 @@
           "default": true,
           "description": "Enable iVar variant and consensus subworkflow."
         },
+        "run_ivar_consensus": {
+          "type": "boolean",
+          "default": true,
+          "description": "Also run iVar consensus calling when run_ivar is true. It is a second full pileup of the same BAM and nothing downstream reads it. At full depth it costs as much time and memory as the iVar variant pass, so switch it off there."
+        },
         "run_lofreq": {
           "type": "boolean",
           "default": true,
@@ -359,6 +364,9 @@
     },
     "run_ivar": {
       "$ref": "#/definitions/workflow_toggles/properties/run_ivar"
+    },
+    "run_ivar_consensus": {
+      "$ref": "#/definitions/workflow_toggles/properties/run_ivar_consensus"
     },
     "run_lofreq": {
       "$ref": "#/definitions/workflow_toggles/properties/run_lofreq"

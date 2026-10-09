@@ -32,9 +32,13 @@ workflow VARIANT_CALLING {
         ch_ivar_tsv = IVAR_VARIANTS.out.tsv
         ch_versions = ch_versions.mix(IVAR_VARIANTS.out.versions)
 
-        IVAR_CONSENSUS(ch_viral_bams, ch_fasta.first())
-        ch_ivar_consensus = IVAR_CONSENSUS.out.consensus
-        ch_versions       = ch_versions.mix(IVAR_CONSENSUS.out.versions)
+        // A second pileup of the same BAM. At full depth it holds tens of gigabytes while it
+        // runs, so it can be switched off.
+        if (params.run_ivar_consensus) {
+            IVAR_CONSENSUS(ch_viral_bams, ch_fasta.first())
+            ch_ivar_consensus = IVAR_CONSENSUS.out.consensus
+            ch_versions       = ch_versions.mix(IVAR_CONSENSUS.out.versions)
+        }
     }
 
     // 3. LoFreq branch

@@ -109,6 +109,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   has processes named like ours (`IVAR_VARIANTS`, `SAMTOOLS_SORT`), so a setting aimed at the
   variant run would also change Stage A.
 
+- **`--run_ivar_consensus` (default true) switches off the iVar consensus pass**: `IVAR_CONSENSUS`
+  runs a second full `samtools mpileup` over the same BAM and nothing downstream reads its output.
+  At full depth (about 47 million read pairs, 1.2 million times coverage) the two iVar passes ran
+  together, and each held more than 10 GB of memory when it was 40% done and kept growing. The
+  default is unchanged. Set it to false to run the variant pass alone.
+
 ### Fixed
 - **A fresh clone showed 29 files as modified**: `.gitattributes` says `*.sh`, `*.gtf` and the
   other text formats use LF, but 28 legacy shell scripts and `tests/data/viral_ref.test.gtf` were

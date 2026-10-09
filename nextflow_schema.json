@@ -156,6 +156,12 @@
           "type": "boolean",
           "default": false,
           "description": "Enable base alignment quality calculation in LoFreq."
+        },
+        "lofreq_sb_thresh": {
+          "type": "integer",
+          "default": 60,
+          "minimum": 0,
+          "description": "Maximum strand-bias phred value a variant may carry (lofreq filter --sb-thresh). LoFreq's compound filter also requires ~85% of the alt bases to sit on one strand before it drops a call. Set to 0 to disable."
         }
       }
     },
@@ -321,6 +327,9 @@
     },
     "lofreq_enable_baq": {
       "$ref": "#/definitions/lofreq_options/properties/lofreq_enable_baq"
+    },
+    "lofreq_sb_thresh": {
+      "$ref": "#/definitions/lofreq_options/properties/lofreq_sb_thresh"
     },
     "viloca_window": {
       "$ref": "#/definitions/haplotype_options/properties/viloca_window"

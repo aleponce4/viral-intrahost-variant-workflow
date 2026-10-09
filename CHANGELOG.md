@@ -100,6 +100,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Mermaid's own parser.
 
 ### Fixed
+- **A fresh clone showed 29 files as modified**: `.gitattributes` says `*.sh`, `*.gtf` and the
+  other text formats use LF, but 28 legacy shell scripts and `tests/data/viral_ref.test.gtf` were
+  committed with CRLF. Git saw each as changed from the moment of the clone, and a careless
+  `git add -A` would have committed the conversion mixed into real work. The files are now stored
+  with LF (`git add --renormalize`). Only line endings changed. CI already checked them out as LF
+  on Linux, so no test behaves differently.
 - **iVar indels are valid VCF and left-aligned before annotation (`bin/ivar_variants_to_vcf.py`
   1.2.0, `BCFTOOLS_CSQ`)**:
   iVar writes an insertion as ALT `+T` and a deletion as ALT `-AC`. The converter copied that

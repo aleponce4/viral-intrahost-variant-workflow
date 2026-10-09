@@ -23,6 +23,40 @@ flowchart TD
     I --> J[Executive Report & Scientific Plots]
 ```
 
+### Stock workflow (`scripts/run_stock_workflow.sh`)
+
+Three separate Nextflow runs joined by files. Stage A is an external pipeline and is optional:
+`--consensus` supplies a consensus and skips it. The main workflow above runs unchanged on the
+stock reference.
+
+```mermaid
+flowchart TD
+    subgraph A["Stage A: nf-core/viralmetagenome 1.2.0 (external, optional)"]
+        A1["de novo assembly"] --> A2["scaffold against the reference pool"] --> A3["iterative remapping and consensus"]
+    end
+    subgraph G["BUILD_STOCK_REFERENCE (-entry)"]
+        G1["MINIMAP2_ORIENT"] --> G2["STOCK_PREPARE<br/>orient, name the contig, index"]
+        G2 --> G3["LIFTOFF<br/>transfer the lab annotation"]
+        G3 --> G4["STOCK_CHECK_ANNOTATION<br/>reading frames"]
+        G2 --> G5["MINIMAP2_LIFTOVER"] --> G6["STOCK_LIFTOVER_TABLE<br/>stock to lab positions"]
+        G6 -.->|"only with --stock_primer_bed"| G7["STOCK_LIFTOVER_BED<br/>primers on the stock"]
+        G2 & G3 & G4 & G6 --> G8["STOCK_REPORT"]
+    end
+    subgraph M["Main workflow on the stock reference"]
+        M1["READ_PREPROCESSING, VARIANT_CALLING,<br/>COVERAGE_QC, SELECTION, HAPLOTYPE"] --> M2["ANNOTATION<br/>+ APPEND_REF_COORDS_VCF"]
+        M2 --> M3["REPORTING<br/>+ APPEND_REF_COORDS_TABLE"]
+    end
+    READS["stock reads"] --> A1
+    POOL["reference pool"] --> A2
+    A3 -->|consensus FASTA| G1
+    LAB["lab reference FASTA and GFF3"] --> G1
+    G2 -->|stock FASTA| M1
+    G3 -->|stock GFF3| M1
+    G6 -.->|"liftover table (--liftover_tsv)"| M2
+    G7 -.->|"primers.bed (amplicon)"| M1
+    SAMPLES["samplesheet.csv"] --> M1
+```
+
 ---
 
 ## 2. Modular Subworkflow Architecture

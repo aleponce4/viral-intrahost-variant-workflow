@@ -8,13 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **LoFreq strand-bias filter (`--lofreq_sb_thresh`, default 60)**: `LOFREQ_FILTER` now passes
-  `--sb-thresh` to `lofreq filter`. LoFreq drops a call only when its strand-bias phred value
-  exceeds the threshold and about 85% of its alt bases sit on one strand. In the TC-83 pilot, calls
-  below 0.5% frequency carried a mean strand-bias phred of 144.5, so they were artifacts. Set the
-  parameter to 0 to turn the filter off. **The default changes results**: runs that used the old
-  quality-only filter can lose strand-biased low-frequency calls. The threshold used is written to
-  `<sample>.qc_stats.txt`.
+- **Strand-bias rule for `lofreq filter` is configurable (`--lofreq_sb_thresh`, default 60)**:
+  `LOFREQ_FILTER` passes `--sb-thresh` to `lofreq filter`. That replaces LoFreq's built-in
+  strand-bias rule, an FDR test, with a fixed phred cutoff. `0` leaves the built-in rule in place.
+  Either rule drops a call only when about 85% of its alt reads also sit on one strand. On the
+  TC-83 stock data (full depth, 2 million pairs and 200,000 pairs) neither the built-in rule nor any
+  cutoff from 100 down to 40 removed a call, so the default does not change those results. High
+  strand-bias values are common there and grow with depth (4 of 124 calls above 60 at 200,000 pairs,
+  145 of 516 at 2 million, 1,156 of 2,369 at full depth), but none of those calls had 85% of its alt
+  reads on one strand. The rule in use is written to `<sample>.qc_stats.txt`.
 - **A primer scheme can be moved onto a stock (`--stock_primer_bed`, `bin/liftover_bed.py`)**:
   a scheme is designed once against the lab reference, but `ivar trim` needs the coordinates of
   whatever the reads were aligned to, and one indel between a stock and the reference shifts

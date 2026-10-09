@@ -1,0 +1,5 @@
+##fileformat=VCFv4.2
+##contig=<ID=stock-test,length=11443>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+stock-test	1	.	A	G	.	PASS	DP=100;AF=0.05
+stock-test	2	.	A	C	.	PASS	DP=100;AF=0.02

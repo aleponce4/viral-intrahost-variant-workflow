@@ -1,0 +1,79 @@
+nextflow_process {
+
+    name "Test Process APPEND_REF_COORDS"
+    script "modules/local/stock/append_ref_coords/main.nf"
+    process "APPEND_REF_COORDS"
+
+    test("append_ref_coords - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.variants.test.vcf", checkIfExists: true)
+                ]
+                input[1] = file("${projectDir}/tests/data/stock.liftover.test.tsv", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.annotated[0][1]).exists()
+            assert process.out.annotated[0][1].endsWith("stock.variants.test.refcoords.vcf")
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    test("append_ref_coords - adds the reference position to each call") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.variants.test.vcf", checkIfExists: true)
+                ]
+                input[1] = file("${projectDir}/tests/data/stock.liftover.test.tsv", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def lines = path(process.out.annotated[0][1]).text.readLines().findAll { !it.startsWith('#') }
+            assert lines.size() == 2
+            // The fixture's first two stock bases are identical to reference bases 1 and 2.
+            assert lines[0].contains("REF_CONTIG=KP282671.1;REF_POS=1;REF_STATUS=match")
+            assert lines[1].contains("REF_CONTIG=KP282671.1;REF_POS=2;REF_STATUS=match")
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    test("append_ref_coords - annotates a variant table") {
+
+        when {
+            process {
+                """
+                def table = file("${workDir}/summary.tsv")
+                table.text = "sample\\tchrom\\tpos\\tref\\talt\\nS1\\tstock-test\\t1\\tA\\tG\\n"
+                input[0] = [ [ id: 'summary' ], table ]
+                input[1] = file("${projectDir}/tests/data/stock.liftover.test.tsv", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def lines = path(process.out.annotated[0][1]).text.readLines()
+            assert lines[0].endsWith("ref_contig\tref_pos\tref_end\tref_status")
+            assert lines[1].endsWith("KP282671.1\t1\tNA\tmatch")
+        }
+
+    }
+
+}

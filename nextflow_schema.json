@@ -254,6 +254,11 @@
           "type": "string",
           "format": "file-path",
           "description": "Primer scheme in lab-reference coordinates (BED6). Moved onto the stock, because ivar trim needs the coordinates of whatever the reads were aligned to."
+        },
+        "liftover_tsv": {
+          "type": "string",
+          "format": "file-path",
+          "description": "Liftover table from BUILD_STOCK_REFERENCE (qc/<stock>.liftover.tsv). When set, the annotated VCFs and the variant summary table gain lab-reference coordinates (REF_CONTIG, REF_POS, REF_END, REF_STATUS)."
         }
       }
     }
@@ -369,6 +374,9 @@
     },
     "stock_primer_bed": {
       "$ref": "#/definitions/stock_reference_options/properties/stock_primer_bed"
+    },
+    "liftover_tsv": {
+      "$ref": "#/definitions/stock_reference_options/properties/liftover_tsv"
     }
   }
 }

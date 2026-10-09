@@ -6,6 +6,7 @@
 
 include { IVAR_TSV_TO_VCF } from '../../modules/local/ivar/tsv_to_vcf/main'
 include { BCFTOOLS_CSQ    } from '../../modules/local/bcftools/csq/main'
+include { APPEND_REF_COORDS as APPEND_REF_COORDS_VCF } from '../../modules/local/stock/append_ref_coords/main'
 
 workflow ANNOTATION {
     take:
@@ -17,6 +18,7 @@ workflow ANNOTATION {
     main:
     ch_versions = Channel.empty()
     ch_annotated_vcf = Channel.empty()
+    ch_refcoords_vcf = Channel.empty()
 
     if (params.run_annotation) {
         // Convert iVar TSV to VCF
@@ -40,9 +42,18 @@ workflow ANNOTATION {
         BCFTOOLS_CSQ(ch_vcf_to_annotate, ch_fasta.first(), ch_gff.first())
         ch_annotated_vcf = BCFTOOLS_CSQ.out.vcf
         ch_versions      = ch_versions.mix(BCFTOOLS_CSQ.out.versions)
+
+        // Calls on a stock carry stock positions. With a liftover table, also write
+        // each VCF with the lab-reference position of every call.
+        if (params.liftover_tsv) {
+            APPEND_REF_COORDS_VCF(BCFTOOLS_CSQ.out.vcf, file(params.liftover_tsv, checkIfExists: true))
+            ch_refcoords_vcf = APPEND_REF_COORDS_VCF.out.annotated
+            ch_versions      = ch_versions.mix(APPEND_REF_COORDS_VCF.out.versions)
+        }
     }
 
     emit:
     annotated_vcf = ch_annotated_vcf
+    refcoords_vcf = ch_refcoords_vcf
     versions      = ch_versions
 }

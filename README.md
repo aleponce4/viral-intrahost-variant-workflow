@@ -151,6 +151,27 @@ Three details decide whether the result is usable:
 
 ---
 
+### Reporting calls on lab-reference coordinates
+
+A call on a stock carries a stock position. Pass the liftover table to the calling
+run and each annotated VCF is also written with the lab-reference position of every
+call, and the variant summary table gains the same columns:
+
+```bash
+nextflow run . -profile docker ... \
+  --liftover_tsv refs/StockReference/TC83-stock/qc/TC83-stock.liftover.tsv
+```
+
+| Where | Added |
+|---|---|
+| `Annotated_variants/<caller>/<sample>.csq.refcoords.vcf` | INFO `REF_CONTIG`, `REF_POS`, `REF_END`, `REF_STATUS` |
+| `Reports/Plots/variant_frequency_summary_pct.refcoords.tsv` | columns `ref_contig`, `ref_pos`, `ref_end`, `ref_status` |
+
+`REF_STATUS` is `match` or `mismatch` for a base the reference also has, `insertion`
+for a stock base the reference lacks (no `REF_POS`), and `unmapped` for a position
+outside the aligned block, such as a poly-A tail. `REF_END` appears only when the
+REF allele spans more than one base. The call itself is not changed.
+
 ## Usage & Execution Profiles
 
 ### Samplesheet Format (`--input`)
@@ -196,6 +217,7 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
 | `--lofreq_sig` | `0.01` | LoFreq significance threshold |
 | `--lofreq_enable_indelqual` | `false` | Enable LoFreq indel quality assessment |
 | `--lofreq_enable_baq` | `false` | Enable LoFreq base alignment quality (BAQ) |
+| `--liftover_tsv` | `null` | `qc/<stock>.liftover.tsv` from `BUILD_STOCK_REFERENCE`; adds lab-reference coordinates to annotated VCFs and the variant table |
 | `--viloca_window` | `150` | Window size for VILOCA local quasispecies reconstruction |
 | `--viloca_shift` | `50` | Window shift step for VILOCA local quasispecies reconstruction |
 | `--cliquesnv_min_freq` | `0.001` | Minimum frequency threshold for CliqueSNV |

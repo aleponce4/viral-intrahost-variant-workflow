@@ -9,7 +9,7 @@ process BWA_MEM {
     tuple val(meta_ref), path(fasta), path(index_dir)
 
     output:
-    tuple val(meta), path("*.sam"), emit: sam
+    tuple val(meta), path("*.sam.gz"), emit: sam
     tuple val(meta), path("*.bwa.log"), emit: log
     path "versions.yml"           , emit: versions
 
@@ -18,8 +18,11 @@ process BWA_MEM {
 
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
+    // The SAM goes straight into gzip. At full depth, tens of millions of read pairs,
+    // an uncompressed SAM is tens of gigabytes. samtools sort reads a gzip SAM directly.
     """
-    bwa mem -t ${task.cpus} ${index_dir}/${fasta.name} ${fastq_1} ${fastq_2} 2> ${prefix}.bwa.log > ${prefix}.sam
+    set -o pipefail
+    bwa mem -t ${task.cpus} ${index_dir}/${fasta.name} ${fastq_1} ${fastq_2} 2> ${prefix}.bwa.log | gzip -1 > ${prefix}.sam.gz
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -30,7 +33,7 @@ process BWA_MEM {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    touch ${prefix}.sam
+    touch ${prefix}.sam.gz
     touch ${prefix}.bwa.log
 
     cat <<-END_VERSIONS > versions.yml

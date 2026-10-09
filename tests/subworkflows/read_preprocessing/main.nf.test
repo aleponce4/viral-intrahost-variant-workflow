@@ -26,6 +26,9 @@ nextflow_workflow {
         then {
             assert workflow.success
             assert workflow.out.bams != null
+            // The BAM comes from the gzip SAM that BWA_MEM writes, so it must not be empty.
+            assert path(workflow.out.bams[0][1]).toFile().length() > 1000
+            assert path(workflow.out.bams[0][2]).exists()
             assert workflow.out.fastqc_zip != null
             assert workflow.out.bwa_log != null
             assert workflow.out.stats != null

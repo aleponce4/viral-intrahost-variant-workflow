@@ -151,6 +151,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     now match the real CLIs.
 
 ### Changed
+- **`BWA_MEM` writes a compressed SAM and no longer publishes it**: the alignments went to disk as an
+  uncompressed SAM and were then copied into `<outdir>/Bwa/`. At full depth (about 47 million read
+  pairs) that is tens of gigabytes, written twice. The SAM now goes through `gzip -1` on its way out,
+  `samtools sort` reads it directly, and only `<sample>.bwa.log` is published. The sorted BAM is
+  unchanged. `set -o pipefail` makes a failed `bwa mem` fail the task.
 - **Documentation**: Replaced the internal `docs/history/` build specifications with
   `docs/migration.md`, a human-facing account of the legacy Bash → Nextflow DSL2 migration,
   linked from the README.

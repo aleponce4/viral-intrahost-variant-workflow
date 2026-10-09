@@ -99,6 +99,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   coordinates and the primer BED attach. Documentation only. The diagrams were checked with
   Mermaid's own parser.
 
+- **The launcher can cut Stage A's reads (`--stage-a-pairs N`) and takes a config per stage
+  (`--stage-a-config`, `--variants-config`)**: Stage A maps the reads again in three rounds, so
+  at full depth it is estimated to add several hours, and the consensus does not change (200,000
+  and 2,000,000 pairs of one stock gave the identical consensus). `--stage-a-pairs` keeps the first
+  N pairs of `--stock-reads` for Stage A and leaves `--samples` at full depth. It refuses a value
+  that is not a positive whole number, a file that is not a gzip FASTQ, and an R1 and R2 of
+  different length. The two config options exist because `--config` reaches every step and Stage A
+  has processes named like ours (`IVAR_VARIANTS`, `SAMTOOLS_SORT`), so a setting aimed at the
+  variant run would also change Stage A.
+
 ### Fixed
 - **iVar indels are valid VCF and left-aligned before annotation (`bin/ivar_variants_to_vcf.py`
   1.2.0, `BCFTOOLS_CSQ`)**:

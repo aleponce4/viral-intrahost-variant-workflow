@@ -32,7 +32,11 @@ Required
   --outdir DIR            Where everything is written (one subdirectory per step).
 
 Stage A (de novo consensus)
-  --stock-reads R1 R2     The stock's paired FASTQ files.
+  --stock-reads R1 R2     The stock's paired FASTQ files (gzip).
+  --stage-a-pairs N       Give Stage A only the first N read pairs of --stock-reads. Stage A
+                          maps the reads again in three rounds, so its run time grows faster
+                          than the read count. A few million pairs are enough for a consensus.
+                          --samples is not affected and keeps its full depth.
   --reference-pool FASTA  Related genomes the assembly is scaffolded against.
   --consensus FILE        Use this consensus and skip Stage A.
 
@@ -52,6 +56,10 @@ Run control
   --profile NAME          Nextflow profile for every step: docker, apptainer or singularity.
                           Default: docker, or the value of STOCK_WORKFLOW_PROFILE.
   --config FILE           Extra Nextflow config for every step, for example resource limits.
+  --stage-a-config FILE   Extra Nextflow config for Stage A only.
+  --variants-config FILE  Extra Nextflow config for the variant run only. Use it for settings
+                          named after this pipeline's processes (LOFREQ_CALL threads, say),
+                          because Stage A has processes with some of the same names.
   --stage-a-extra "ARGS"  Extra arguments for the Stage A run.
   --variants-extra "ARGS" Extra arguments for the variant run.
   --dry-run               Print the commands. Run nothing and write nothing.
@@ -83,6 +91,7 @@ abs() {
 STOCK="" OUTDIR="" READS_1="" READS_2="" POOL="" CONSENSUS_ARG=""
 LAB_FASTA="" LAB_GFF="" PRIMER_BED="" SAMPLES=""
 STEP="all" PROFILE="${STOCK_WORKFLOW_PROFILE:-docker}" CONFIG="" STAGE_A_EXTRA="" VARIANTS_EXTRA="" DRY_RUN=0
+STAGE_A_PAIRS="" STAGE_A_PAIRS_GIVEN=0 STAGE_A_CONFIG="" VARIANTS_CONFIG=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -98,6 +107,9 @@ while [ $# -gt 0 ]; do
         --step)            [ $# -ge 2 ] || die "--step needs a value";            STEP="$2"; shift 2 ;;
         --profile)         [ $# -ge 2 ] || die "--profile needs a value";         PROFILE="$2"; shift 2 ;;
         --config)          [ $# -ge 2 ] || die "--config needs a value";          CONFIG="$2"; shift 2 ;;
+        --stage-a-pairs)   [ $# -ge 2 ] || die "--stage-a-pairs needs a value";   STAGE_A_PAIRS="$2"; STAGE_A_PAIRS_GIVEN=1; shift 2 ;;
+        --stage-a-config)  [ $# -ge 2 ] || die "--stage-a-config needs a value";  STAGE_A_CONFIG="$2"; shift 2 ;;
+        --variants-config) [ $# -ge 2 ] || die "--variants-config needs a value"; VARIANTS_CONFIG="$2"; shift 2 ;;
         --stage-a-extra)   [ $# -ge 2 ] || die "--stage-a-extra needs a value";   STAGE_A_EXTRA="$2"; shift 2 ;;
         --variants-extra)  [ $# -ge 2 ] || die "--variants-extra needs a value";  VARIANTS_EXTRA="$2"; shift 2 ;;
         --dry-run)         DRY_RUN=1; shift ;;
@@ -112,6 +124,14 @@ case "$STOCK" in
     *[!A-Za-z0-9._-]*) die "--stock may hold only letters, digits, '.', '_' and '-'. It becomes a contig name and a sample name." ;;
 esac
 case "$STEP" in all|stage-a|reference|variants) ;; *) die "--step must be all, stage-a, reference or variants" ;; esac
+if [ "$STAGE_A_PAIRS_GIVEN" -eq 1 ]; then
+    case "$STAGE_A_PAIRS" in
+        ''|0|*[!0-9]*) die "--stage-a-pairs must be a positive whole number" ;;
+    esac
+    # Read it as decimal. Bash arithmetic would take 08 for a bad octal number.
+    STAGE_A_PAIRS=$((10#$STAGE_A_PAIRS))
+    [ "$STAGE_A_PAIRS" -gt 0 ] || die "--stage-a-pairs must be a positive whole number"
+fi
 
 # --- which steps run ---------------------------------------------------------
 RUN_A=0; RUN_REF=0; RUN_VAR=0
@@ -147,6 +167,8 @@ if [ "$RUN_VAR" -eq 1 ]; then
     need_file "--samples" "$SAMPLES"
 fi
 [ -z "$CONFIG" ] || need_file "--config" "$CONFIG"
+[ -z "$STAGE_A_CONFIG" ] || need_file "--stage-a-config" "$STAGE_A_CONFIG"
+[ -z "$VARIANTS_CONFIG" ] || need_file "--variants-config" "$VARIANTS_CONFIG"
 [ -f "$STAGE_A_PARAMS" ] || die "missing Stage A params file: $STAGE_A_PARAMS"
 
 # --- paths -------------------------------------------------------------------
@@ -159,6 +181,8 @@ OUTDIR="$(abs "$OUTDIR")"
 [ -z "$PRIMER_BED" ] || PRIMER_BED="$(abs "$PRIMER_BED")"
 [ -z "$SAMPLES" ] || SAMPLES="$(abs "$SAMPLES")"
 [ -z "$CONFIG" ] || CONFIG="$(abs "$CONFIG")"
+[ -z "$STAGE_A_CONFIG" ] || STAGE_A_CONFIG="$(abs "$STAGE_A_CONFIG")"
+[ -z "$VARIANTS_CONFIG" ] || VARIANTS_CONFIG="$(abs "$VARIANTS_CONFIG")"
 
 A_DIR="${OUTDIR}/stage_a"
 REF_DIR="${OUTDIR}/reference"
@@ -173,6 +197,11 @@ LOG="${OUTDIR}/stock_run.log"
 
 CONFIG_ARGS=()
 [ -z "$CONFIG" ] || CONFIG_ARGS=(-c "$CONFIG")
+# A later -c overrides an earlier one, so the per-stage file comes after the shared one.
+CONFIG_ARGS_A=("${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"}")
+[ -z "$STAGE_A_CONFIG" ] || CONFIG_ARGS_A+=(-c "$STAGE_A_CONFIG")
+CONFIG_ARGS_V=("${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"}")
+[ -z "$VARIANTS_CONFIG" ] || CONFIG_ARGS_V+=(-c "$VARIANTS_CONFIG")
 
 # A stage may need its own Java, so its command can start with `env NXF_JAVA_HOME=...`.
 PREFIX_A=()
@@ -222,6 +251,22 @@ find_consensus() {
     printf '%s\n' "${hits[0]}"
 }
 
+# subsample_fastq SRC DST PAIRS : the first PAIRS reads of a gzip FASTQ, gzip-compressed.
+# Prints how many reads DST holds on stdout.
+subsample_fastq() {
+    local src="$1" dst="$2" pairs="$3" status got
+    set +e
+    gzip -dc "$src" | head -n $((pairs * 4)) | gzip -1 > "$dst"
+    status=("${PIPESTATUS[@]}")
+    set -e
+    # gzip -dc is stopped by SIGPIPE (141) once head has enough. That is expected.
+    if { [ "${status[0]}" -ne 0 ] && [ "${status[0]}" -ne 141 ]; } || [ "${status[1]}" -ne 0 ] || [ "${status[2]}" -ne 0 ]; then
+        die "could not read ${src} as a gzip FASTQ"
+    fi
+    got=$(( $(gzip -dc "$dst" | wc -l) / 4 ))
+    printf '%s\n' "$got"
+}
+
 # run_step NAME DIR CMD...  : run CMD inside DIR, or print it on a dry run.
 run_step() {
     local name="$1" dir="$2"
@@ -240,22 +285,49 @@ run_step() {
 if [ "$DRY_RUN" -eq 0 ]; then
     log ""
     log "run started $(date -u +%Y-%m-%dT%H:%M:%SZ), stock ${STOCK}, step ${STEP}"
-    log "pipeline commit: $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    commit="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    # A commit hash alone misleads when files were edited after it, so say so.
+    if [ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=no 2>/dev/null)" ]; then
+        commit="${commit} (with uncommitted changes)"
+    fi
+    log "pipeline commit: ${commit}"
 fi
 
 # --- Stage A -----------------------------------------------------------------
 if [ "$RUN_A" -eq 1 ]; then
+    A_READS_1="$READS_1"
+    A_READS_2="$READS_2"
+    if [ -n "$STAGE_A_PAIRS" ]; then
+        A_READS_1="${A_DIR}/subsample/${STOCK}_R1.fastq.gz"
+        A_READS_2="${A_DIR}/subsample/${STOCK}_R2.fastq.gz"
+        marker="${A_DIR}/subsample/source.txt"
+        wanted="${STAGE_A_PAIRS} ${READS_1} ${READS_2}"
+        if [ "$DRY_RUN" -eq 1 ]; then
+            echo "[dry-run] would keep the first ${STAGE_A_PAIRS} read pairs of each --stock-reads file in ${A_DIR}/subsample/"
+        elif [ -s "$A_READS_1" ] && [ -s "$A_READS_2" ] && [ "$(cat "$marker" 2>/dev/null)" = "$wanted" ]; then
+            echo "Stage A reads: reusing the first ${STAGE_A_PAIRS} read pairs kept earlier."
+        else
+            mkdir -p "${A_DIR}/subsample"
+            n1="$(subsample_fastq "$READS_1" "$A_READS_1" "$STAGE_A_PAIRS")"
+            n2="$(subsample_fastq "$READS_2" "$A_READS_2" "$STAGE_A_PAIRS")"
+            [ "$n1" -eq "$n2" ] || die "--stock-reads R1 and R2 hold different numbers of reads (${n1} and ${n2})"
+            [ "$n1" -ge "$STAGE_A_PAIRS" ] || echo "Note: --stock-reads has only ${n1} read pairs, so Stage A uses all of them."
+            printf '%s\n' "$wanted" > "$marker"
+            log "Stage A reads: the first ${n1} read pairs of ${READS_1} and ${READS_2}"
+            echo "Stage A reads: kept the first ${n1} read pairs of each file."
+        fi
+    fi
     if [ "$DRY_RUN" -eq 1 ]; then
         echo "[dry-run] would write ${A_DIR}/samplesheet.csv:"
-        printf '            sample,fastq_1,fastq_2\n            %s,%s,%s\n' "$STOCK" "$READS_1" "$READS_2"
+        printf '            sample,fastq_1,fastq_2\n            %s,%s,%s\n' "$STOCK" "$A_READS_1" "$A_READS_2"
     else
         mkdir -p "$A_DIR"
-        printf 'sample,fastq_1,fastq_2\n%s,%s,%s\n' "$STOCK" "$READS_1" "$READS_2" > "${A_DIR}/samplesheet.csv"
+        printf 'sample,fastq_1,fastq_2\n%s,%s,%s\n' "$STOCK" "$A_READS_1" "$A_READS_2" > "${A_DIR}/samplesheet.csv"
     fi
 
     stage_a_cmd=("${PREFIX_A[@]+"${PREFIX_A[@]}"}" "$NXF_STAGE_A" run nf-core/viralmetagenome
                  -r "$VMG_REVISION" -profile "$PROFILE")
-    stage_a_cmd+=("${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"}")
+    stage_a_cmd+=("${CONFIG_ARGS_A[@]+"${CONFIG_ARGS_A[@]}"}")
     stage_a_cmd+=(-params-file "$STAGE_A_PARAMS" --input "${A_DIR}/samplesheet.csv"
                   --reference_pool "$POOL" --outdir "$A_OUT" -resume)
     if [ -n "$STAGE_A_EXTRA" ]; then
@@ -302,7 +374,7 @@ if [ "$RUN_VAR" -eq 1 ]; then
     fi
 
     var_cmd=("${PREFIX_B[@]+"${PREFIX_B[@]}"}" "$NXF_STAGE_B" run "$REPO_ROOT" -profile "$PROFILE")
-    var_cmd+=("${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"}")
+    var_cmd+=("${CONFIG_ARGS_V[@]+"${CONFIG_ARGS_V[@]}"}")
     var_cmd+=(--input "$SAMPLES" --fasta "$REF_FASTA" --gff "$REF_GFF"
               --viral_contig "$STOCK" --dataset "$STOCK" --liftover_tsv "$REF_LIFTOVER")
     [ -z "$PRIMER_BED" ] || var_cmd+=(--protocol amplicon --primer_bed "$REF_PRIMERS")

@@ -142,7 +142,15 @@ scripts/run_stock_workflow.sh \
   Set `STOCK_WORKFLOW_PROFILE` once to change the default for your site. With Apptainer or
   Singularity, set `NXF_APPTAINER_CACHEDIR` or `NXF_SINGULARITY_CACHEDIR` so images are
   pulled once.
+- `--stage-a-pairs N` gives Stage A only the first N read pairs of `--stock-reads`. Stage A maps
+  the reads again in three rounds, so its run time grows faster than the read count, and it is
+  estimated at several hours at 47 million pairs. More reads do not change the consensus: for one
+  stock, 200,000 and 2,000,000 read pairs gave the identical consensus. `--samples` keeps its full
+  depth. The cut is kept in `stage_a/subsample/`, noted in `stock_run.log`, and reused on a re-run.
 - `--config` adds a Nextflow config to every step, for example resource limits.
+  `--stage-a-config` and `--variants-config` add one to Stage A or to the variant run only. Put
+  settings named after this pipeline's processes, such as the `LOFREQ_CALL` threads, in
+  `--variants-config`, because Stage A has processes with some of the same names.
 - Stage A and the other two steps may need different Nextflow versions. Point
   `NXF_STAGE_A` and `NXF_STAGE_B` at the binaries to use. Both default to `nextflow`.
 - Stage A needs Java 17 or newer, because its `nf-schema` plugin is built for it. Under Java 11

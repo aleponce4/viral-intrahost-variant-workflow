@@ -6,6 +6,7 @@ The launcher chains three Nextflow runs. These tests replace Nextflow with a fak
 that records every call and writes the files a real run would, so the order, the
 arguments and the hand-off between steps are checked without Nextflow or data.
 """
+import gzip
 import os
 import shutil
 import stat
@@ -331,6 +332,146 @@ class LauncherTests(unittest.TestCase):
         os.chmod(failing, 0o755)
         result = self.run_launcher(*self.full(), env={'NXF_STAGE_A': failing})
         self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.calls(), [])
+
+
+    # --- Stage A subsample and per-stage configs ---------------------------
+
+    def write_fastq_gz(self, name, reads, tag):
+        """A real gzip FASTQ with `reads` records, so --stage-a-pairs has something to cut."""
+        path = self.p(name)
+        with gzip.open(path, 'wt', encoding='utf-8') as f:
+            for i in range(reads):
+                f.write(f'@{tag}_read{i}\nACGTACGT\n+\nIIIIIIII\n')
+        return path
+
+    def read_ids(self, path):
+        with gzip.open(path, 'rt', encoding='utf-8') as f:
+            return [line.strip() for n, line in enumerate(f) if n % 4 == 0]
+
+    def with_real_reads(self, reads=10):
+        r1 = self.write_fastq_gz('real_R1.fastq.gz', reads, 'p')
+        r2 = self.write_fastq_gz('real_R2.fastq.gz', reads, 'p')
+        args = self.full()
+        i = args.index('--stock-reads')
+        args[i + 1], args[i + 2] = r1, r2
+        return args
+
+    def test_stage_a_pairs_keeps_the_first_pairs_and_points_stage_a_at_them(self):
+        result = self.run_launcher(*self.with_real_reads(10), '--stage-a-pairs', '4')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        sub = os.path.join(self.out, 'stage_a', 'subsample')
+        for r in ('R1', 'R2'):
+            self.assertEqual(self.read_ids(os.path.join(sub, f's1_{r}.fastq.gz')),
+                             ['@p_read0', '@p_read1', '@p_read2', '@p_read3'])
+        with open(os.path.join(self.out, 'stage_a', 'samplesheet.csv'), encoding='utf-8') as f:
+            self.assertIn(f's1,{sub}/s1_R1.fastq.gz,{sub}/s1_R2.fastq.gz', f.read())
+
+    def test_stage_a_pairs_does_not_touch_the_variant_samples(self):
+        self.run_launcher(*self.with_real_reads(10), '--stage-a-pairs', '4')
+        var = self.calls()[2]['args']
+        self.assertIn(f'--input {self.p("samples.csv")}', var)
+
+    def test_stage_a_pairs_larger_than_the_file_uses_all_reads_and_says_so(self):
+        result = self.run_launcher(*self.with_real_reads(10), '--stage-a-pairs', '100')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('only 10 read pairs', result.stdout)
+        sub = os.path.join(self.out, 'stage_a', 'subsample', 's1_R1.fastq.gz')
+        self.assertEqual(len(self.read_ids(sub)), 10)
+
+    def test_stage_a_pairs_is_recorded_in_the_log(self):
+        self.run_launcher(*self.with_real_reads(10), '--stage-a-pairs', '4')
+        with open(os.path.join(self.out, 'stock_run.log'), encoding='utf-8') as f:
+            self.assertIn('Stage A reads: the first 4 read pairs of', f.read())
+
+    def test_stage_a_pairs_is_reused_when_nothing_changed(self):
+        args = self.with_real_reads(10)
+        self.run_launcher(*args, '--stage-a-pairs', '4')
+        target = os.path.join(self.out, 'stage_a', 'subsample', 's1_R1.fastq.gz')
+        before = os.stat(target).st_mtime_ns
+        result = self.run_launcher(*args, '--stage-a-pairs', '4')
+        self.assertIn('reusing the first 4 read pairs', result.stdout)
+        self.assertEqual(os.stat(target).st_mtime_ns, before)
+
+    def test_stage_a_pairs_is_redone_when_the_number_changes(self):
+        args = self.with_real_reads(10)
+        self.run_launcher(*args, '--stage-a-pairs', '4')
+        self.run_launcher(*args, '--stage-a-pairs', '6')
+        target = os.path.join(self.out, 'stage_a', 'subsample', 's1_R1.fastq.gz')
+        self.assertEqual(len(self.read_ids(target)), 6)
+
+    def test_stage_a_pairs_values_that_are_not_positive_whole_numbers_are_refused(self):
+        for bad in ('0', 'abc', '-3', '2.5', ''):
+            result = self.run_launcher(*self.full(), '--stage-a-pairs', bad)
+            self.assertEqual(result.returncode, 2, repr(bad))
+            self.assertIn('positive whole number', result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_stage_a_pairs_with_a_leading_zero_is_read_as_decimal(self):
+        result = self.run_launcher(*self.with_real_reads(10), '--stage-a-pairs', '08')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        sub = os.path.join(self.out, 'stage_a', 'subsample', 's1_R1.fastq.gz')
+        self.assertEqual(len(self.read_ids(sub)), 8)
+
+    def test_stage_a_pairs_with_a_file_that_is_not_gzip_is_refused(self):
+        result = self.run_launcher(*self.full(), '--stage-a-pairs', '4')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('as a gzip FASTQ', result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_stage_a_pairs_with_r1_and_r2_of_different_length_is_refused(self):
+        args = self.with_real_reads(10)
+        i = args.index('--stock-reads')
+        args[i + 2] = self.write_fastq_gz('short_R2.fastq.gz', 3, 'p')
+        result = self.run_launcher(*args, '--stage-a-pairs', '5')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('different numbers of reads', result.stderr)
+
+    def test_stage_a_pairs_is_ignored_when_a_consensus_replaces_stage_a(self):
+        args = ['--stock', 's1', '--outdir', self.out, '--consensus', self.p('my.consensus.fasta'),
+                '--lab-fasta', self.p('lab.fa'), '--lab-gff', self.p('lab.gff3'),
+                '--samples', self.p('samples.csv'), '--stage-a-pairs', '4']
+        result = self.run_launcher(*args)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'stage_a')))
+
+    def test_dry_run_describes_the_subsample_and_writes_nothing(self):
+        result = self.run_launcher(*self.with_real_reads(10), '--stage-a-pairs', '4', '--dry-run')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('would keep the first 4 read pairs', result.stdout)
+        self.assertIn('s1_R1.fastq.gz', result.stdout)
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_per_stage_configs_reach_only_their_own_stage(self):
+        for name in ('all.config', 'a.config', 'v.config'):
+            open(self.p(name), 'w').close()
+        self.run_launcher(*self.full('--config', self.p('all.config'),
+                                     '--stage-a-config', self.p('a.config'),
+                                     '--variants-config', self.p('v.config')))
+        a, ref, var = (c['args'] for c in self.calls())
+        self.assertIn(f'-c {self.p("all.config")}', a)
+        self.assertIn(f'-c {self.p("a.config")}', a)
+        self.assertNotIn('v.config', a)
+        self.assertIn(f'-c {self.p("all.config")}', ref)
+        self.assertNotIn('a.config', ref)
+        self.assertNotIn('v.config', ref)
+        self.assertIn(f'-c {self.p("all.config")}', var)
+        self.assertIn(f'-c {self.p("v.config")}', var)
+        self.assertNotIn('a.config', var)
+
+    def test_the_per_stage_config_comes_after_the_shared_one_so_it_wins(self):
+        for name in ('all.config', 'a.config'):
+            open(self.p(name), 'w').close()
+        self.run_launcher(*self.full('--config', self.p('all.config'),
+                                     '--stage-a-config', self.p('a.config')))
+        a = self.calls()[0]['args']
+        self.assertLess(a.index('all.config'), a.index('a.config'))
+
+    def test_a_missing_per_stage_config_is_named(self):
+        for flag in ('--stage-a-config', '--variants-config'):
+            result = self.run_launcher(*self.full(flag, self.p('nope.config')))
+            self.assertEqual(result.returncode, 2, flag)
+            self.assertIn(flag, result.stderr)
         self.assertEqual(self.calls(), [])
 
 

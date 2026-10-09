@@ -22,6 +22,8 @@ nextflow_process {
         }
         then {
             assert process.out.sam != null || process.out.log != null
+            // The alignments leave as a gzip SAM, not an uncompressed one.
+            assert process.out.sam == null || process.out.sam[0][1].toString().endsWith(".sam.gz")
         }
     }
 }

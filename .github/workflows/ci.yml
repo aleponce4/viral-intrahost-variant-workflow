@@ -60,6 +60,12 @@ jobs:
       - name: Parse awsbatch profile config
         run: nextflow config -profile awsbatch > /dev/null
 
+      - name: Parse apptainer profile config
+        run: nextflow config -profile apptainer > /dev/null
+
+      - name: Parse singularity profile config
+        run: nextflow config -profile singularity > /dev/null
+
   nftest:
     runs-on: ubuntu-latest
     strategy:

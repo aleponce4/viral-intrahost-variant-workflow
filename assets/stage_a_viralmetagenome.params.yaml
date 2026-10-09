@@ -1,5 +1,5 @@
 # Fixed settings for Stage A: nf-core/viralmetagenome 1.2.0 on a purified-virus
-# shotgun stock. These are the settings used for the TC-83 stock pilot.
+# shotgun stock.
 #
 #   nextflow run nf-core/viralmetagenome -r 1.2.0 -profile docker \
 #     -params-file assets/stage_a_viralmetagenome.params.yaml \

@@ -71,12 +71,12 @@ is left.
 
 This repository does not contain Stage A. It uses
 [nf-core/viralmetagenome](https://nf-co.re/viralmetagenome) 1.2.0 unchanged. The
-settings below are the ones used for the TC-83 stock pilot, kept in
+settings below were validated on a purified-virus shotgun stock and are kept in
 `assets/stage_a_viralmetagenome.params.yaml`. The samplesheet has one row per stock:
 
 ```csv
 sample,fastq_1,fastq_2
-TC83-stock,TC83-stock_R1.fastq.gz,TC83-stock_R2.fastq.gz
+my_stock,my_stock_R1.fastq.gz,my_stock_R2.fastq.gz
 ```
 
 ```bash
@@ -92,20 +92,19 @@ Why these settings:
 - **`deduplicate: false`.** An 11 kb genome has about 11,000 possible read starts. At high
   depth most reads share a start and are not duplicates. In this lab's RNA-seq data,
   MarkDuplicates flagged 62 to 82% of viral reads at over 100,000x.
-- **`normalise_reads: true`.** On the 2 million pair pilot it gave one contig of 11,446 bp with
-  no Ns. Without it the consensus ran about 700 bp too long and contained Ns. It affects
-  assembly only. Remapping and the variant calls use the full-depth reads.
+- **`normalise_reads: true`.** On a 2 million pair test of an 11.4 kb alphavirus stock it gave
+  one contig with no Ns. Without it the consensus ran about 700 bp too long and contained Ns.
+  It affects assembly only. Remapping and the variant calls use the full-depth reads.
 - **The `skip_*` flags.** Host removal, read classification, preclustering, CheckV, consensus
-  annotation and Prokka are skipped because the pilot was a purified virus with almost no
-  host. Turn host removal on when the host fraction is high.
+  annotation and Prokka are skipped because purified virus has almost no host. Turn host
+  removal on when the host fraction is high.
 - **The reference pool** is a FASTA of related genomes that the assembly is scaffolded
-  against. The pilot pool held five genomes (VEEV TrD, VEEV INH-9813, EEEV FL93, EEEV V105,
-  WEEV Fleming) and did not include TC-83.
+  against. The test used five alphavirus genomes and left out the stock's own strain.
 
 Hand `consensus/seq/variant-calling/<stock>/<stock>_*.consensus.fasta` to
-`--stock_consensus` below. That is the file the pilot used.
+`--stock_consensus` below.
 
-Amplicon data is untested. The pilot was shotgun. For amplicon stocks, trim primers with
+Amplicon data is untested. The validation data was shotgun. For amplicon stocks, trim primers with
 cutadapt before building the samplesheet, because viralmetagenome has no primer options and
 the consensus at a primer site would otherwise reflect the primer.
 

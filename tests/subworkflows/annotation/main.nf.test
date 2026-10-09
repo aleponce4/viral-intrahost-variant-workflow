@@ -55,6 +55,57 @@ nextflow_workflow {
             def del = records.find { it[3] == 'ACAG' && it[4] == 'A' }
             assert del != null
             assert del[7].contains('inframe_deletion')
+
+            // No liftover table, so no reference-coordinate VCF.
+            assert workflow.out.refcoords_vcf.size() == 0
+        }
+
+    }
+
+    test("annotation - liftover table adds reference coordinates") {
+
+        when {
+            params {
+                // An identity map over the first 400 bases, enough to cover every fixture call.
+                liftover_tsv = "${workDir}/identity.liftover.tsv"
+            }
+            workflow {
+                """
+                def rows = (1..400).collect { "KP282671.1\\t\${it}\\tKP282671.1\\t\${it}\\tmatch\\t.\\t." }
+                new File(params.liftover_tsv).text =
+                    "stock_contig\\tstock_pos\\tref_contig\\tref_pos\\tstatus\\tstock_base\\tref_base\\n" + rows.join("\\n") + "\\n"
+
+                input[0] = Channel.of([
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.test.ivar.tsv", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.test.vcf", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.vcf", checkIfExists: true)
+                ])
+                input[2] = Channel.of([
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ])
+                input[3] = Channel.of([
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            def ivar = workflow.out.refcoords_vcf.find { it[0].caller == 'ivar' }
+            assert ivar != null
+            def records = path(ivar[1]).readLines().findAll { !it.startsWith('#') }.collect { it.split('\t') }
+            assert records.size() == 3
+            // The map is the identity, so every call lands on its own position.
+            assert records.every { it[7].matches(".*REF_POS=${it[1]}(;.*)?") }
+            assert records.every { it[7].contains("REF_CONTIG=KP282671.1") }
         }
 
     }

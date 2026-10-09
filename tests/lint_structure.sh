@@ -44,6 +44,7 @@ MANDATORY_FILES=(
     "bin/build_liftover_table.py"
     "bin/check_lifted_annotation.py"
     "bin/liftover_bed.py"
+    "bin/append_ref_coords.py"
     "bin/summarize_stock_reference.py"
     "bin/parse_gb_to_gff3.py"
     "bin/convert_gff3_to_gtf.py"

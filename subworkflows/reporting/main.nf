@@ -5,6 +5,7 @@
 */
 
 include { REPORT_RUN_SUMMARY; REPORT_COVERAGE_PLOTS; REPORT_VARIANT_PLOTS } from '../../modules/local/reporting/main'
+include { APPEND_REF_COORDS as APPEND_REF_COORDS_TABLE } from '../../modules/local/stock/append_ref_coords/main'
 include { EXECUTIVE_REPORT                                                 } from '../../modules/local/report/executive_report/main'
 include { HAPLOTYPE_TABLES; HAPLOTYPE_LINKAGE; HAPLOTYPE_PLOTS             } from '../../modules/local/report/haplotype_report/main'
 
@@ -32,6 +33,16 @@ workflow REPORTING {
 
     REPORT_VARIANT_PLOTS(ch_vcf.collect())
     ch_versions = ch_versions.mix(REPORT_VARIANT_PLOTS.out.versions)
+
+    // The variant table is on stock positions. With a liftover table, add the
+    // lab-reference position beside each call.
+    if (params.liftover_tsv) {
+        APPEND_REF_COORDS_TABLE(
+            REPORT_VARIANT_PLOTS.out.summary.map { tsv -> [ [ id: 'variant_frequency_summary_pct' ], tsv ] },
+            file(params.liftover_tsv, checkIfExists: true)
+        )
+        ch_versions = ch_versions.mix(APPEND_REF_COORDS_TABLE.out.versions)
+    }
 
     // Haplotype Reporting
     ch_cliquesnv_files = ch_cliquesnv_fasta.map { meta, fasta -> fasta }.collect().ifEmpty([])

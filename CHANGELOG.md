@@ -57,6 +57,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     multi-block alignment rather than mapping coordinates that cannot be mapped.
   - New parameters `--stock_consensus` and `--stock_name`.
 
+- **Results on a stock can be reported on lab-reference coordinates (`--liftover_tsv`,
+  `bin/append_ref_coords.py`)**: a call on a stock carries a stock position, which is not
+  comparable across stocks and is not the position the lab's other datasets use. Pass
+  `qc/<stock>.liftover.tsv` from `BUILD_STOCK_REFERENCE` and every annotated VCF is also
+  written as `<sample>.csq.refcoords.vcf` with INFO `REF_CONTIG`, `REF_POS`, `REF_END` and
+  `REF_STATUS`, and the variant summary table gains `ref_contig`, `ref_pos`, `ref_end` and
+  `ref_status` columns. The call itself is not changed. A stock base the reference lacks has
+  status `insertion` and no `REF_POS`, and a position outside the aligned block is
+  `unmapped`. Nothing runs unless the parameter is set. On the TC-83 pilot, all 516 LoFreq and
+  1,981 iVar calls that received a position carried the same REF base as the lab reference
+  at that position; 6 iVar poly-A calls past the aligned block were `unmapped`.
+
 ### Fixed
 - **iVar indels are valid VCF and left-aligned before annotation (`bin/ivar_variants_to_vcf.py`
   1.2.0, `BCFTOOLS_CSQ`)**:

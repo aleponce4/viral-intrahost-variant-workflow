@@ -3,9 +3,11 @@
 
 `lofreq call` stops counting reads at --max-depth, 1,000,000 by default. At a position
 deeper than that, the allele counts, and so the VAF, come from a subset of the reads that
-cover it, and the VAF can read well above the truth. On a library sequenced to about 1.2
-million times coverage, a position at 4.4 million times gave 1.8% from LoFreq's capped
+cover it, and the VAF can differ from the full-depth value. On a library sequenced to about
+1.2 million times coverage, a position at 4.4 million times gave 1.8% from LoFreq's capped
 subset and 0.5% from iVar at full depth. With the cap raised to 10 million LoFreq gave 0.56%.
+At other deep positions the capped and full-depth values agreed, so the check marks where
+the cap applied, not which calls are wrong.
 
 This script compares the cap with the real depth from `samtools depth`. LoFreq can examine at
 most max_depth reads, so fraction_examined = min(1, max_depth / real_depth). A call is marked
@@ -164,7 +166,7 @@ def main():
             print(f"  {chrom}:{pos} {ref}>{alt}  LoFreq VAF {vaf:.2%}  "
                   f"{real:,} reads, LoFreq examined at most {cap:,} ({fraction:.0%})")
     if capped:
-        print("A capped VAF comes from a subset of the reads and can read high. "
+        print("A capped VAF comes from a subset of the reads and can differ from the full-depth value. "
               "Check these calls against iVar, or raise --lofreq_max_depth to the deepest position.")
 
 

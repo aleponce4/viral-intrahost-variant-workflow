@@ -167,7 +167,7 @@
           "type": "integer",
           "default": 1000000,
           "minimum": 1,
-          "description": "Depth at which LoFreq stops counting reads (--max-depth). Above it a call's VAF comes from a subset of the reads and can read high. 1000000 is LoFreq's own default. Raise it for libraries deeper than that."
+          "description": "Depth at which LoFreq stops counting reads (--max-depth). Above it a call's VAF comes from the first reads LoFreq meets, not from all of them, and can differ from the full-depth value. 1000000 is LoFreq's own default. Raise it for libraries deeper than that."
         }
       }
     },

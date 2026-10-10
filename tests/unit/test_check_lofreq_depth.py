@@ -3,7 +3,7 @@
 Run from the repository root:  python -m unittest discover -s tests/unit -v
 
 The script decides whether a LoFreq VAF came from all the reads at a position or from a
-subset. A wrong flag either hides an inflated VAF or marks a sound one, so each test
+subset. A wrong flag either hides a VAF that the cap changed or marks a sound one, so each test
 states the expected flag and the expected fraction explicitly.
 
 LoFreq can examine at most max_depth reads, so fraction_examined = min(1, max_depth / real

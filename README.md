@@ -353,7 +353,7 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
 | `--lofreq_min_mq` | `20` | Minimum mapping quality for LoFreq |
 | `--lofreq_sig` | `0.01` | LoFreq significance threshold |
 | `--lofreq_sb_thresh` | `0` | Fixed strand-bias phred cutoff for `lofreq filter`, used in place of LoFreq's built-in rule. `0` keeps the built-in rule. Either rule also needs about 85% of a call's alt reads on one strand |
-| `--lofreq_max_depth` | `1000000` | Depth at which LoFreq stops counting reads. Above it a call's VAF comes from a subset of the reads and can read high. Raise it for libraries deeper than this. `LoFreq/<sample>/<sample>.depth_check.tsv` flags the calls it affected |
+| `--lofreq_max_depth` | `1000000` | Depth at which LoFreq stops counting reads. Above it a call's VAF comes from the first reads LoFreq meets, not from all of them, and can differ from the full-depth value. Raise it for libraries deeper than this. `LoFreq/<sample>/<sample>.depth_check.tsv` flags the calls it affected |
 | `--lofreq_enable_indelqual` | `false` | Enable LoFreq indel quality assessment |
 | `--lofreq_enable_baq` | `false` | Enable LoFreq base alignment quality (BAQ) |
 | `--liftover_tsv` | `null` | `qc/<stock>.liftover.tsv` from `BUILD_STOCK_REFERENCE`; adds lab-reference coordinates to annotated VCFs and the variant table |
@@ -401,6 +401,64 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
   nextflow run . -profile awsbatch -w s3://my-bucket/work --input s3://my-bucket/samplesheet.csv --fasta s3://my-bucket/ref.fa --gff s3://my-bucket/ref.gff3
   ```
   Example configuration template for AWS Batch container execution with S3 storage. Adjust queue name and AWS CLI paths in `conf/awsbatch.config` for your infrastructure before deployment.
+
+### Libraries deeper than 1 million times
+
+Numbers here come from one library: about 47 million read pairs, about 1.2 million times mean
+coverage of an 11.4 kb genome, on a machine with 32 cores and 52 GB of RAM. The median position
+had 534,000 reads and the deepest had 7.6 million. 37% of positions (4,184 of 11,446) were deeper
+than 1 million. Scale the numbers to your machine.
+
+| Step | Time | Memory at its peak |
+|---|---|---|
+| `BWA_MEM` | 4.7 min on 12 threads | |
+| `SAMTOOLS_SORT` | 4.4 min on 8 threads | 6.8 GB |
+| `EXTRACT_VIRAL_BAM` | 12.6 min | under 1 GB |
+| `LOFREQ_CALL` (default cap) | 44 min on 16 threads | 12.6 GB |
+| `IVAR_VARIANTS` | 134 min on 1 thread | 30 GB |
+
+`conf/full_depth.example.config` sets resources that fit this run. Pass it with `-c`, or with
+`--variants-config` in the stock launcher, because Stage A has processes with some of the same names.
+
+Two things differ from a run at ordinary depth.
+
+**iVar memory.** iVar is single-threaded and keeps the pileup it reads, so its memory grows with
+progress. The consensus pass, `IVAR_CONSENSUS`, runs a second full `samtools mpileup` over the same
+BAM, and nothing downstream reads its output. Both passes at once needed about 80 GB of RAM plus
+swap. Set `--run_ivar_consensus false` at this depth. In the stock workflow the consensus already
+comes from Stage A.
+
+**The LoFreq depth cap.** `lofreq call` stops counting reads at `--lofreq_max_depth`, 1,000,000
+by default. Above that, a call's VAF comes from the first reads LoFreq meets, not from all of
+them. In the library above, 806 of 1,856 calls sat at positions where the cap let LoFreq examine
+under 80% of the reads. 11 of those had a VAF of 1% or more, and I ran them again with the cap at
+10 million:
+
+| Result with the cap at 10 million | Calls |
+|---|---|
+| VAF within 0.4 percentage points of the default | 6 |
+| VAF 2 to 3 times lower (1.15% to 0.62%, 1.81% to 0.56%, 1.79% to 0.65%) | 3 |
+| Not called | 2 |
+
+iVar reads every read. Where it reported a value, it agreed with the raised cap and not with the
+default.
+
+`LoFreq/<sample>/<sample>.depth_check.tsv` lists every call with the real depth, the cap and the
+fraction of reads the cap let LoFreq examine, and marks the calls where that fraction is under 0.8.
+A mark means the cap applied. It does not mean the VAF is wrong, as the first row of the table
+shows. Check the marked calls you care about, against iVar or with a higher cap.
+
+Raising the cap for the whole run costs memory and time. With the cap at 10 million, LoFreq on 16
+threads passed 40 GB within 35 minutes, and I stopped it. On 8 threads it peaked at 26 GB and had
+not finished after 7 hours. The default cap peaked at 12.6 GB and took 44 minutes. A cheaper check
+runs `lofreq call` on a window around one marked position. Here a 5-base window took 2 to 58
+minutes on one thread, with the same filters as the pipeline:
+
+```bash
+lofreq call -f ref.fasta -r contig:10372-10376 \
+  --min-cov 10 --min-bq 30 --min-alt-bq 30 --min-mq 20 --sig 0.01 \
+  --max-depth 10000000 -o window.vcf sample.viral_only.bam
+```
 
 ---
 

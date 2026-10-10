@@ -14,9 +14,11 @@ workflow COVERAGE_QC {
     main:
     ch_versions = Channel.empty()
     ch_coverage_summary = Channel.empty()
+    ch_depth            = Channel.empty()
 
     if (params.run_coverage) {
         COVERAGE_DEPTH(ch_viral_bams)
+        ch_depth    = COVERAGE_DEPTH.out.depth
         ch_versions = ch_versions.mix(COVERAGE_DEPTH.out.versions)
 
         COVERAGE_SUMMARIZE(COVERAGE_DEPTH.out.depth)
@@ -26,5 +28,6 @@ workflow COVERAGE_QC {
 
     emit:
     coverage_summary = ch_coverage_summary
+    depth            = ch_depth // channel: [ val(meta), path(depth.tsv) ]
     versions         = ch_versions
 }

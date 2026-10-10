@@ -33,7 +33,7 @@ process LOFREQ_CALL {
         input_bam="${prefix}.indelqual.bam"
     fi
 
-    lofreq call-parallel --pp-threads ${task.cpus} -f ${fasta} --min-cov ${params.lofreq_min_depth} --min-bq ${params.lofreq_min_bq} --min-alt-bq ${params.lofreq_min_bq} --min-mq ${params.lofreq_min_mq} --sig ${params.lofreq_sig} -o ${prefix}.vcf ${input_bam}
+    lofreq call-parallel --pp-threads ${task.cpus} -f ${fasta} --min-cov ${params.lofreq_min_depth} --min-bq ${params.lofreq_min_bq} --min-alt-bq ${params.lofreq_min_bq} --min-mq ${params.lofreq_min_mq} --sig ${params.lofreq_sig} --max-depth ${params.lofreq_max_depth} -o ${prefix}.vcf ${input_bam}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

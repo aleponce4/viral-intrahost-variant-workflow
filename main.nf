@@ -14,6 +14,7 @@ include { READ_PREPROCESSING     } from './subworkflows/local/read_preprocessing
 include { VARIANT_CALLING        } from './subworkflows/variant_calling/main'
 include { ANNOTATION             } from './subworkflows/annotation/main'
 include { COVERAGE_QC            } from './subworkflows/coverage_qc/main'
+include { LOFREQ_DEPTH_CHECK     } from './modules/local/lofreq/depth_check/main'
 include { SELECTION              } from './subworkflows/local/selection'
 include { HAPLOTYPE              } from './subworkflows/local/haplotype'
 include { REPORTING              } from './subworkflows/reporting/main'
@@ -109,6 +110,14 @@ workflow {
     // 5. Coverage QC
     COVERAGE_QC(VARIANT_CALLING.out.viral_bams)
 
+    // 5b. Flag LoFreq calls made where LoFreq counted only some of the reads. Runs
+    // when both the LoFreq calls and the depth table exist.
+    ch_lofreq_depth = VARIANT_CALLING.out.lofreq_vcf
+        .map { meta, vcf, tbi -> [ meta.id, meta, vcf ] }
+        .join(COVERAGE_QC.out.depth.map { meta, depth -> [ meta.id, depth ] })
+        .map { id, meta, vcf, depth -> [ meta, vcf, depth ] }
+    LOFREQ_DEPTH_CHECK(ch_lofreq_depth)
+
     // 6. Selection Analysis (optional, --run_snpgenie)
     ch_snpgenie_vcfs = VARIANT_CALLING.out.lofreq_vcf
         .map { meta, vcf, tbi -> [ meta, vcf ] }
@@ -136,6 +145,7 @@ workflow {
         .mix(VARIANT_CALLING.out.versions)
         .mix(ANNOTATION.out.versions)
         .mix(COVERAGE_QC.out.versions)
+        .mix(LOFREQ_DEPTH_CHECK.out.versions)
         .mix(SELECTION.out.versions)
         .mix(HAPLOTYPE.out.versions)
 

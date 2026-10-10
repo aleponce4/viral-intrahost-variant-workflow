@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The LoFreq depth cap is a parameter (`--lofreq_max_depth`, default 1000000), and calls made above it
+  are flagged (`LOFREQ_DEPTH_CHECK`)**: `LOFREQ_CALL` passes the value to `lofreq call-parallel` as
+  `--max-depth`. The default is LoFreq's own, so results do not change unless it is set. `lofreq call`
+  counts at most that many reads at a position, so above it a call's VAF comes from the first reads
+  LoFreq meets, not from all of them. `LOFREQ_DEPTH_CHECK` compares the cap with the real depth from
+  `COVERAGE_QC` and writes `LoFreq/<sample>/<sample>.depth_check.tsv` and `.txt`. It marks a call when
+  the cap let LoFreq examine under 80% of the reads at its position. It does not use LoFreq's own
+  `INFO/DP`, because LoFreq also drops reads on base and mapping quality. In a full-depth library with
+  37% of positions over the cap, 806 of 1,856 calls were marked. Of the 11 marked calls at 1% or more,
+  6 stayed within 0.4 percentage points when the cap was raised to 10 million, 3 fell 2 to 3 times, and
+  2 were no longer called. A mark means the cap applied, not that the VAF is wrong. Raising the cap for
+  a whole run costs memory and time. The README section "Libraries deeper than 1 million times" has
+  the numbers.
+- **Resources and guidance for a full-depth run (`conf/full_depth.example.config`)**: per-step time and
+  memory measured on a library of about 47 million read pairs, and the iVar and LoFreq behaviour that
+  matters at that depth. Nothing in it is a default.
 - **Strand-bias rule for `lofreq filter` is configurable (`--lofreq_sb_thresh`, default 0)**:
   `LOFREQ_FILTER` passes `--sb-thresh` to `lofreq filter` when the value is above 0. That replaces
   LoFreq's built-in strand-bias rule, an FDR test, with a fixed phred cutoff. The default, `0`,

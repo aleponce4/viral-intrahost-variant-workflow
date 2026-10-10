@@ -1,0 +1,89 @@
+nextflow_process {
+
+    name "Test Process LOFREQ_DEPTH_CHECK"
+    script "modules/local/lofreq/depth_check/main.nf"
+    process "LOFREQ_DEPTH_CHECK"
+
+    test("lofreq_depth_check - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.capped.test.vcf", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.depth.tsv", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.tsv[0][1]).exists()
+            assert path(process.out.summary[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    // The fixture VCF records --max-depth 30 in its header.
+    // Position 20 has 20 reads, under the cap: not capped.
+    // Position 100 has 60 reads, so LoFreq could examine half of them: capped.
+    test("lofreq_depth_check - flags the call the cap let LoFreq examine half the reads for") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.capped.test.vcf", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.depth.tsv", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def rows = path(process.out.tsv[0][1]).readLines().collect { it.split('\t') as List }
+            assert rows[0] == ['chrom', 'pos', 'ref', 'alt', 'lofreq_vaf', 'lofreq_depth', 'real_depth', 'max_depth', 'fraction_examined', 'depth_capped']
+            assert rows.size() == 3
+            assert rows[1][1] == '20' && rows[1][9] == 'no'
+            assert rows[2][1] == '100' && rows[2][9] == 'yes'
+            assert rows[2][7] == '30' && rows[2][8] == '0.5000'
+            def summary = path(process.out.summary[0][1]).text
+            assert summary.contains('LoFreq depth cap: 30 (from the VCF header).')
+            assert summary.contains('2 call(s): 1 at positions where the cap let LoFreq examine under 80%')
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    test("lofreq_depth_check - ext.args reaches the script") {
+        config "./ratio.config"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.capped.test.vcf", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.depth.tsv", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            // With --ratio 0.4, examining 50% of the reads is no longer under the ratio.
+            def rows = path(process.out.tsv[0][1]).readLines().collect { it.split('\t') as List }
+            assert rows[2][9] == 'no'
+            assert path(process.out.summary[0][1]).text.contains('under 40%')
+        }
+
+    }
+
+}

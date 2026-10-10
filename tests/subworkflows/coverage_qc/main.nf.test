@@ -21,6 +21,9 @@ nextflow_workflow {
         then {
             assert workflow.success
             assert workflow.out.coverage_summary != null
+            // The depth table is handed on, so LOFREQ_DEPTH_CHECK can use it.
+            assert workflow.out.depth.size() == 1
+            assert path(workflow.out.depth[0][1]).exists()
         }
 
     }

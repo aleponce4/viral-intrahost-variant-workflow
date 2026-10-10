@@ -441,7 +441,8 @@ under 80% of the reads. 11 of those had a VAF of 1% or more, and I ran them agai
 | Not called | 2 |
 
 iVar reads every read. Where it reported a value, it agreed with the raised cap and not with the
-default.
+default. A whole-genome run with the cap at 10 million gave the same 11 values as the single-position
+runs.
 
 `LoFreq/<sample>/<sample>.depth_check.tsv` lists every call with the real depth, the cap and the
 fraction of reads the cap let LoFreq examine, and marks the calls where that fraction is under 0.8.
@@ -449,8 +450,8 @@ A mark means the cap applied. It does not mean the VAF is wrong, as the first ro
 shows. Check the marked calls you care about, against iVar or with a higher cap.
 
 Raising the cap for the whole run costs memory and time. With the cap at 10 million, LoFreq on 16
-threads passed 40 GB within 35 minutes, and I stopped it. On 8 threads it peaked at 26 GB and had
-not finished after 7 hours. The default cap peaked at 12.6 GB and took 44 minutes. A cheaper check
+threads passed 40 GB within 35 minutes, and the run was stopped. On 8 threads it peaked at 26 GB
+and took 11.8 hours. The default cap peaked at 12.6 GB and took 44 minutes on 16 threads. A cheaper check
 runs `lofreq call` on a window around one marked position. Here a 5-base window took 2 to 58
 minutes on one thread, with the same filters as the pipeline:
 

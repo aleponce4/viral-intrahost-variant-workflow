@@ -9,6 +9,7 @@ This directory contains test datasets used by `nf-test` and the `-profile test` 
 - `sampleA.test.bam` / `sampleA.test.bam.bai`: Test BAM with seeded variants.
 - `sampleB.test.bam` / `sampleB.test.bam.bai`: Test BAM with seeded variants.
 - `primers.test.bed`: Synthetic primer BED file for amplicon protocol testing.
+- `sampleA.capped.test.vcf`: Two LoFreq-style calls and a header that records `--max-depth 30`. Position 20 has 20 reads in `sampleA.test.depth.tsv`, under the cap. Position 100 has 60, so the cap lets LoFreq examine half of them. Input to `LOFREQ_DEPTH_CHECK`.
 - `sampleA.test.ivar.tsv`: iVar `variants` output in iVar's real column layout, holding an SNV, an insertion inside a homopolymer run and an in-frame deletion.
 
 Stock reference fixtures, used by `-entry BUILD_STOCK_REFERENCE`:

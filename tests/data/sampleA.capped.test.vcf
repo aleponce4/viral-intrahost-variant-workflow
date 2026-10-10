@@ -1,0 +1,8 @@
+##fileformat=VCFv4.2
+##source=lofreq call-parallel -f viral_ref.test.fasta --min-cov 10 --min-bq 30 --min-alt-bq 30 --min-mq 20 --sig 0.01 --max-depth 30 -o sampleA.vcf sampleA.test.bam
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Raw Depth">
+##INFO=<ID=AF,Number=1,Type=Float,Description="Allele Frequency">
+##INFO=<ID=DP4,Number=4,Type=Integer,Description="Counts for ref-forward bases, ref-reverse, alt-forward and alt-reverse bases">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+KP282671.1	20	.	G	A	60	PASS	DP=20;AF=0.100000;DP4=9,9,1,1
+KP282671.1	100	.	T	C	60	PASS	DP=27;AF=0.111111;DP4=12,12,2,1

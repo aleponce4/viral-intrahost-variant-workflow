@@ -54,6 +54,8 @@ flowchart TD
     C --> F[LOFREQ_CALL]
     F --> G[LOFREQ_FILTER]
     C --> H[COVERAGE_DEPTH] --> I[COVERAGE_SUMMARIZE]
+    G --> Q[LOFREQ_DEPTH_CHECK]
+    H --> Q
     
     D --> J[ivar_variants_to_vcf.py] --> K[BCFTOOLS_CSQ]
     G --> K
@@ -351,6 +353,7 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
 | `--lofreq_min_mq` | `20` | Minimum mapping quality for LoFreq |
 | `--lofreq_sig` | `0.01` | LoFreq significance threshold |
 | `--lofreq_sb_thresh` | `0` | Fixed strand-bias phred cutoff for `lofreq filter`, used in place of LoFreq's built-in rule. `0` keeps the built-in rule. Either rule also needs about 85% of a call's alt reads on one strand |
+| `--lofreq_max_depth` | `1000000` | Depth at which LoFreq stops counting reads. Above it a call's VAF comes from a subset of the reads and can read high. Raise it for libraries deeper than this. `LoFreq/<sample>/<sample>.depth_check.tsv` flags the calls it affected |
 | `--lofreq_enable_indelqual` | `false` | Enable LoFreq indel quality assessment |
 | `--lofreq_enable_baq` | `false` | Enable LoFreq base alignment quality (BAQ) |
 | `--liftover_tsv` | `null` | `qc/<stock>.liftover.tsv` from `BUILD_STOCK_REFERENCE`; adds lab-reference coordinates to annotated VCFs and the variant table |
@@ -411,7 +414,9 @@ results/
 │   └── <sample>/
 │       ├── variants.filtered.vcf.gz
 │       ├── variants.filtered.vcf.gz.tbi
-│       └── qc_stats.txt
+│       ├── qc_stats.txt
+│       ├── depth_check.tsv
+│       └── depth_check.txt
 ├── Ivar/
 │   └── <sample>/
 │       ├── variants.tsv

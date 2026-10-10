@@ -54,6 +54,39 @@ nextflow_process {
             assert process.success
             assert path(process.out.vcf[0][1]).exists()
             assert path(process.out.versions[0]).exists()
+            // LoFreq writes the arguments it ran with into the VCF header.
+            assert path(process.out.vcf[0][1]).text.contains('--max-depth 1000000')
+        }
+
+    }
+
+    test("lofreq_call - --lofreq_max_depth reaches LoFreq") {
+
+        when {
+            params {
+                lofreq_max_depth = 5000000
+            }
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.test.bam", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.bam.bai", checkIfExists: true)
+                ]
+                input[1] = [
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def vcf = path(process.out.vcf[0][1]).text
+            assert vcf.contains('--max-depth 5000000')
+            assert !vcf.contains('--max-depth 1000000')
         }
 
     }

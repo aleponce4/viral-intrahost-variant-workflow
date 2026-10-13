@@ -46,6 +46,13 @@ workflow BUILD_STOCK_REFERENCE {
         error "Parameter --gff must be specified (the lab reference annotation, with CDS features)."
     }
 
+    if (params.stock_reads_1 && !params.stock_reads_2 || !params.stock_reads_1 && params.stock_reads_2) {
+        error "Parameters --stock_reads_1 and --stock_reads_2 go together (the stock's paired reads, for the purity check)."
+    }
+    if ((params.purity_pool || params.purity_kraken2_db) && !params.stock_reads_1) {
+        error "--purity_pool and --purity_kraken2_db belong to the purity check, which needs --stock_reads_1 and --stock_reads_2."
+    }
+
     def stock_id = params.stock_name ?: file(params.stock_consensus).getBaseName()
 
     ch_consensus = Channel.of([ [ id: stock_id ], file(params.stock_consensus, checkIfExists: true) ])

@@ -23,6 +23,7 @@ include { STOCK_LIFTOVER_TABLE                   } from '../../modules/local/sto
 include { STOCK_CHECK_ANNOTATION                 } from '../../modules/local/stock/check_annotation/main'
 include { STOCK_LIFTOVER_BED                     } from '../../modules/local/stock/liftover_bed/main'
 include { STOCK_REPORT                           } from '../../modules/local/stock/report/main'
+include { STOCK_PURITY                           } from './stock_purity'
 
 workflow STOCK_REFERENCE {
     take:
@@ -74,6 +75,32 @@ workflow STOCK_REFERENCE {
         ch_versions = ch_versions.mix(STOCK_LIFTOVER_BED.out.versions)
     }
 
+    // Purity: does this stock hold one virus? Only when its reads are given, because
+    // the reference is built from a consensus and the consensus has no reads.
+    ch_purity_tsv = Channel.value(file("${projectDir}/assets/NO_FILE"))
+    ch_purity_md  = Channel.value(file("${projectDir}/assets/NO_FILE"))
+    ch_purity_tsv_out = Channel.empty()
+    ch_purity_md_out  = Channel.empty()
+    if (params.stock_reads_1) {
+        STOCK_PURITY(
+            ch_stock_fasta,
+            ch_stock_fasta.map { meta, fasta, fai ->
+                [ meta, file(params.stock_reads_1, checkIfExists: true), file(params.stock_reads_2, checkIfExists: true) ]
+            },
+            params.purity_pool
+                ? Channel.value([ [ id: 'pool' ], file(params.purity_pool, checkIfExists: true) ])
+                : Channel.empty(),
+            params.purity_kraken2_db
+                ? Channel.value(file(params.purity_kraken2_db, checkIfExists: true))
+                : Channel.empty()
+        )
+        ch_purity_tsv     = STOCK_PURITY.out.tsv.map { meta, tsv -> tsv }
+        ch_purity_md      = STOCK_PURITY.out.markdown.map { meta, md -> md }
+        ch_purity_tsv_out = STOCK_PURITY.out.tsv
+        ch_purity_md_out  = STOCK_PURITY.out.markdown
+        ch_versions = ch_versions.mix(STOCK_PURITY.out.versions)
+    }
+
     // One page per stock: how far it sits from the lab reference, whether the
     // annotation came across intact, and anything a reader should look at.
     STOCK_REPORT(
@@ -82,7 +109,9 @@ workflow STOCK_REFERENCE {
         STOCK_LIFTOVER_TABLE.out.summary,
         STOCK_PREPARE.out.orientation,
         LIFTOFF.out.unmapped,
-        ch_primer_for_report
+        ch_primer_for_report,
+        ch_purity_tsv,
+        ch_purity_md
     )
 
     ch_versions = ch_versions
@@ -105,6 +134,8 @@ workflow STOCK_REFERENCE {
     paf              = MINIMAP2_LIFTOVER.out.paf
     primer_bed       = ch_primer_out       // only when --stock_primer_bed was given
     primer_report    = ch_primer_report
+    purity_tsv       = ch_purity_tsv_out   // only when --stock_reads_1 was given
+    purity_md        = ch_purity_md_out
     report_md        = STOCK_REPORT.out.markdown
     report_tsv       = STOCK_REPORT.out.tsv
     versions         = ch_versions

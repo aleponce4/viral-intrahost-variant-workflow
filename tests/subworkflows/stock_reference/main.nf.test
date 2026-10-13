@@ -127,4 +127,81 @@ nextflow_workflow {
 
     }
 
+    test("stock_reference - adds a purity section to the report when the stock's reads are given") {
+
+        when {
+            params {
+                stock_reads_1 = "${projectDir}/tests/data/sampleA.test_1.fastq.gz"
+                stock_reads_2 = "${projectDir}/tests/data/sampleA.test_2.fastq.gz"
+                purity_pool   = "${projectDir}/tests/data/stock.multi.test.fasta"
+            }
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ])
+                input[2] = Channel.of([
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ])
+                input[3] = Channel.value(file("${projectDir}/assets/NO_FILE"))
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            // The purity files are kept beside the report, and the report carries the section.
+            assert workflow.out.purity_tsv.size() == 1
+            assert workflow.out.purity_md.size() == 1
+            def report = path(workflow.out.report_tsv[0][1]).readLines()
+            def row = [report[0].split('\t'), report[1].split('\t')].transpose().collectEntries()
+            assert row.fraction_reads_mapped_to_stock == '1.0000'
+            assert row.flags == 'none'
+            def md = path(workflow.out.report_md[0][1]).text
+            assert md.contains('## Purity')
+            assert md.contains('Map to the stock reference | 200 | 100.00%')
+        }
+
+    }
+
+    test("stock_reference - without reads there is no purity step") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'viral_ref' ],
+                    file("${projectDir}/tests/data/viral_ref.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/viral_ref.test.fasta.fai", checkIfExists: true)
+                ])
+                input[2] = Channel.of([
+                    [ id: 'viral_gff' ],
+                    file("${projectDir}/tests/data/viral_ref.test.gff3", checkIfExists: true)
+                ])
+                input[3] = Channel.value(file("${projectDir}/assets/NO_FILE"))
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.out.purity_tsv.size() == 0
+            assert !path(workflow.out.report_md[0][1]).text.contains('## Purity')
+            assert !workflow.trace.tasks().collect { it.name }.any { it.contains('PURITY') }
+        }
+
+    }
+
 }

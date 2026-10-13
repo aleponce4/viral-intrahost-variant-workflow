@@ -1,0 +1,64 @@
+nextflow_process {
+
+    name "Test Process KRAKEN2_CLASSIFY"
+    script "modules/local/kraken2/classify/main.nf"
+    process "KRAKEN2_CLASSIFY"
+
+    test("kraken2_classify - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id: 'stock-test' ], file("${projectDir}/tests/data/empty.test.fastq.gz", checkIfExists: true) ]
+                input[1] = file("${projectDir}/tests/data/kraken2_db.test", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.report[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    // Kraken2 stops on an empty input file. No unmapped reads is a valid answer, so the module
+    // writes the report itself and does not call kraken2. A real database is not needed.
+    test("kraken2_classify - no reads give an empty report without calling kraken2") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id: 'stock-test' ], file("${projectDir}/tests/data/empty.test.fastq.gz", checkIfExists: true) ]
+                input[1] = file("${projectDir}/tests/data/kraken2_db.test", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.report[0][1]).text == ' 100.00\t0\t0\tU\t0\tunclassified\n'
+        }
+
+    }
+
+    test("kraken2_classify - a directory that is not a database is refused") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id: 'stock-test' ], file("${projectDir}/tests/data/empty.test.fastq.gz", checkIfExists: true) ]
+                input[1] = file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true).parent
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+        }
+
+    }
+
+}

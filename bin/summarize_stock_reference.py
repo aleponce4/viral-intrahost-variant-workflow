@@ -67,11 +67,18 @@ def main():
     parser.add_argument("--orientation", help="Whether the consensus was reverse-complemented")
     parser.add_argument("--unmapped", help="Features Liftoff could not place")
     parser.add_argument("--primer-report", help="Primer placement report, if a BED was given")
+    parser.add_argument("--purity-tsv", help="Purity check TSV (summarize_purity.py), if the reads were given")
+    parser.add_argument("--purity-md", help="Purity check section, added to the page as it is")
     parser.add_argument("--output-md", required=True)
     parser.add_argument("--output-tsv", required=True)
     args = parser.parse_args()
 
-    for path in (args.fasta, args.annotation_check, args.liftover_summary):
+    if bool(args.purity_tsv) != bool(args.purity_md):
+        print("ERROR: --purity-tsv and --purity-md go together", file=sys.stderr)
+        sys.exit(1)
+    for path in (args.fasta, args.annotation_check, args.liftover_summary, args.purity_tsv, args.purity_md):
+        if path is None:
+            continue
         if not os.path.exists(path):
             print(f"ERROR: file not found: {path}", file=sys.stderr)
             sys.exit(1)
@@ -107,6 +114,10 @@ def main():
     if resized:
         flags.append(f"{len(resized)} primer interval(s) changed width")
 
+    purity = (read_tsv(args.purity_tsv) or [{}])[0] if args.purity_tsv else {}
+    purity_flags = [f for f in purity.get('flags', 'none').split('; ') if f and f != 'none']
+    flags += [f"purity: {f}" for f in purity_flags]
+
     stats = {
         'stock': args.stock_name,
         'contig': contig or 'NA',
@@ -123,6 +134,7 @@ def main():
         'cds_inherited_findings': len(inherited),
         'primers_placed': len(primers) - len(dropped) if primers else 'NA',
         'primers_dropped': len(dropped) if primers else 'NA',
+        'fraction_reads_mapped_to_stock': purity.get('fraction_mapped_to_stock', 'NA'),
         'flags': '; '.join(flags) if flags else 'none',
     }
 
@@ -182,6 +194,10 @@ def main():
             md += [f"- `{p['name']}` {p['source_width']} bp to {p['target_width']} bp"
                    for p in resized]
             md.append("")
+
+    if args.purity_md:
+        with open(args.purity_md, 'r', encoding='utf-8') as f:
+            md += [f.read().rstrip('\r\n'), ""]
 
     md += ["## Worth a look", ""]
     md += ([f"- {f}" for f in flags] if flags else ["Nothing flagged."])

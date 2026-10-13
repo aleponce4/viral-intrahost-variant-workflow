@@ -47,6 +47,16 @@ Stock reference
                           moved onto the stock and the variant run switches to
                           --protocol amplicon.
 
+Purity check (part of the reference step)
+  It runs whenever --stock-reads is given. It samples the stock's reads and reports, in the
+  stock report, how many map to the stock, where they go among the --reference-pool genomes
+  (a second strain shows here), and what the rest are when a Kraken2 database is given.
+  --purity-kraken2-db PATH  A Kraken2 database, as a directory or a .tar.gz. It classifies the
+                          reads that do not map to the stock. The step needs at least as much
+                          memory as the database is large.
+  --purity-pairs N        Read pairs used: the first N of --stock-reads. Default: 1000000.
+  --no-purity             Skip the check.
+
 Variant calling
   --samples CSV           Samplesheet (sample,fastq_1,fastq_2,treatment) of the
                           samples that belong to this stock.
@@ -92,6 +102,7 @@ STOCK="" OUTDIR="" READS_1="" READS_2="" POOL="" CONSENSUS_ARG=""
 LAB_FASTA="" LAB_GFF="" PRIMER_BED="" SAMPLES=""
 STEP="all" PROFILE="${STOCK_WORKFLOW_PROFILE:-docker}" CONFIG="" STAGE_A_EXTRA="" VARIANTS_EXTRA="" DRY_RUN=0
 STAGE_A_PAIRS="" STAGE_A_PAIRS_GIVEN=0 STAGE_A_CONFIG="" VARIANTS_CONFIG=""
+PURITY_DB="" PURITY_PAIRS="" PURITY_PAIRS_GIVEN=0 NO_PURITY=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -108,6 +119,9 @@ while [ $# -gt 0 ]; do
         --profile)         [ $# -ge 2 ] || die "--profile needs a value";         PROFILE="$2"; shift 2 ;;
         --config)          [ $# -ge 2 ] || die "--config needs a value";          CONFIG="$2"; shift 2 ;;
         --stage-a-pairs)   [ $# -ge 2 ] || die "--stage-a-pairs needs a value";   STAGE_A_PAIRS="$2"; STAGE_A_PAIRS_GIVEN=1; shift 2 ;;
+        --purity-kraken2-db) [ $# -ge 2 ] || die "--purity-kraken2-db needs a value"; PURITY_DB="$2"; shift 2 ;;
+        --purity-pairs)    [ $# -ge 2 ] || die "--purity-pairs needs a value";    PURITY_PAIRS="$2"; PURITY_PAIRS_GIVEN=1; shift 2 ;;
+        --no-purity)       NO_PURITY=1; shift ;;
         --stage-a-config)  [ $# -ge 2 ] || die "--stage-a-config needs a value";  STAGE_A_CONFIG="$2"; shift 2 ;;
         --variants-config) [ $# -ge 2 ] || die "--variants-config needs a value"; VARIANTS_CONFIG="$2"; shift 2 ;;
         --stage-a-extra)   [ $# -ge 2 ] || die "--stage-a-extra needs a value";   STAGE_A_EXTRA="$2"; shift 2 ;;
@@ -131,6 +145,17 @@ if [ "$STAGE_A_PAIRS_GIVEN" -eq 1 ]; then
     # Read it as decimal. Bash arithmetic would take 08 for a bad octal number.
     STAGE_A_PAIRS=$((10#$STAGE_A_PAIRS))
     [ "$STAGE_A_PAIRS" -gt 0 ] || die "--stage-a-pairs must be a positive whole number"
+fi
+
+if [ "$PURITY_PAIRS_GIVEN" -eq 1 ]; then
+    case "$PURITY_PAIRS" in
+        ''|0|*[!0-9]*) die "--purity-pairs must be a positive whole number" ;;
+    esac
+    PURITY_PAIRS=$((10#$PURITY_PAIRS))
+    [ "$PURITY_PAIRS" -gt 0 ] || die "--purity-pairs must be a positive whole number"
+fi
+if [ "$NO_PURITY" -eq 1 ] && { [ -n "$PURITY_DB" ] || [ "$PURITY_PAIRS_GIVEN" -eq 1 ]; }; then
+    die "--no-purity switches the purity check off, so --purity-kraken2-db and --purity-pairs have nothing to do"
 fi
 
 # --- which steps run ---------------------------------------------------------
@@ -162,6 +187,16 @@ if [ "$RUN_REF" -eq 1 ]; then
     need_file "--lab-gff" "$LAB_GFF"
     [ -z "$PRIMER_BED" ] || need_file "--primer-bed" "$PRIMER_BED"
     [ -z "$CONSENSUS_ARG" ] || need_file "--consensus" "$CONSENSUS_ARG"
+    if [ "$NO_PURITY" -eq 0 ]; then
+        if [ -n "$READS_1" ] && [ -n "$READS_2" ]; then
+            need_file "--stock-reads (R1)" "$READS_1"
+            need_file "--stock-reads (R2)" "$READS_2"
+            [ -z "$POOL" ] || need_file "--reference-pool" "$POOL"
+        elif [ -n "$PURITY_DB" ] || [ "$PURITY_PAIRS_GIVEN" -eq 1 ]; then
+            die "--purity-kraken2-db and --purity-pairs belong to the purity check, which needs --stock-reads"
+        fi
+        [ -z "$PURITY_DB" ] || [ -e "$PURITY_DB" ] || die "--purity-kraken2-db: not found: $PURITY_DB"
+    fi
 fi
 if [ "$RUN_VAR" -eq 1 ]; then
     need_file "--samples" "$SAMPLES"
@@ -175,6 +210,7 @@ fi
 OUTDIR="$(abs "$OUTDIR")"
 [ -z "$READS_1" ] || { READS_1="$(abs "$READS_1")"; READS_2="$(abs "$READS_2")"; }
 [ -z "$POOL" ] || POOL="$(abs "$POOL")"
+[ -z "$PURITY_DB" ] || PURITY_DB="$(abs "$PURITY_DB")"
 [ -z "$CONSENSUS_ARG" ] || CONSENSUS_ARG="$(abs "$CONSENSUS_ARG")"
 [ -z "$LAB_FASTA" ] || LAB_FASTA="$(abs "$LAB_FASTA")"
 [ -z "$LAB_GFF" ] || LAB_GFF="$(abs "$LAB_GFF")"
@@ -355,6 +391,18 @@ if [ "$RUN_REF" -eq 1 ]; then
     ref_cmd+=("${CONFIG_ARGS[@]+"${CONFIG_ARGS[@]}"}")
     ref_cmd+=(--stock_consensus "$CONSENSUS" --stock_name "$STOCK" --fasta "$LAB_FASTA" --gff "$LAB_GFF")
     [ -z "$PRIMER_BED" ] || ref_cmd+=(--stock_primer_bed "$PRIMER_BED")
+    # The purity check needs the stock's reads. The pool is the one Stage A scaffolds against.
+    if [ "$NO_PURITY" -eq 0 ]; then
+        if [ -n "$READS_1" ] && [ -n "$READS_2" ]; then
+            ref_cmd+=(--stock_reads_1 "$READS_1" --stock_reads_2 "$READS_2")
+            [ -z "$POOL" ] || ref_cmd+=(--purity_pool "$POOL")
+            [ -z "$PURITY_DB" ] || ref_cmd+=(--purity_kraken2_db "$PURITY_DB")
+            [ -z "$PURITY_PAIRS" ] || ref_cmd+=(--purity_pairs "$PURITY_PAIRS")
+            [ -n "$POOL" ] || echo "Note: no --reference-pool, so the purity check cannot look for a second strain."
+        else
+            echo "Note: no --stock-reads, so the purity check is skipped."
+        fi
+    fi
     ref_cmd+=(--outdir "${REF_DIR}/results" -resume)
     if [ "$DRY_RUN" -eq 0 ]; then
         log "Stage B nextflow: $(nxf_version "$NXF_STAGE_B" "$NXF_STAGE_B_JAVA_HOME")"

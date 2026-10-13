@@ -1,0 +1,111 @@
+nextflow_process {
+
+    name "Test Process PURITY_SUBSAMPLE"
+    script "modules/local/purity/subsample/main.nf"
+    process "PURITY_SUBSAMPLE"
+
+    test("purity_subsample - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.test_1.fastq.gz", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test_2.fastq.gz", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.reads[0][1]).exists()
+            assert path(process.out.reads[0][2]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    // The fixture holds 100 read pairs (400 lines per file).
+    test("purity_subsample - keeps the first N pairs of each file") {
+
+        when {
+            params {
+                purity_pairs = 10
+            }
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.test_1.fastq.gz", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test_2.fastq.gz", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def r1 = path(process.out.reads[0][1]).linesGzip
+            def r2 = path(process.out.reads[0][2]).linesGzip
+            assert r1.size() == 40
+            assert r2.size() == 40
+
+            // They are the first reads of the inputs, in order, and still paired.
+            def in1 = path("${projectDir}/tests/data/sampleA.test_1.fastq.gz").linesGzip
+            def in2 = path("${projectDir}/tests/data/sampleA.test_2.fastq.gz").linesGzip
+            assert r1 == in1[0..39]
+            assert r2 == in2[0..39]
+            assert r1[0].split(' ')[0].replaceAll(/\/[12]$/, '') == r2[0].split(' ')[0].replaceAll(/\/[12]$/, '')
+        }
+
+    }
+
+    test("purity_subsample - uses what there is when the file holds fewer pairs than asked") {
+
+        when {
+            params {
+                purity_pairs = 1000
+            }
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.test_1.fastq.gz", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test_2.fastq.gz", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.reads[0][1]).linesGzip.size() == 400
+            assert path(process.out.reads[0][2]).linesGzip.size() == 400
+        }
+
+    }
+
+    test("purity_subsample - refuses a file with no reads") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'empty' ],
+                    file("${projectDir}/tests/data/empty.test.fastq.gz", checkIfExists: true),
+                    file("${projectDir}/tests/data/empty.test.fastq.gz", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+        }
+
+    }
+
+}

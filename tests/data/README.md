@@ -10,6 +10,12 @@ This directory contains test datasets used by `nf-test` and the `-profile test` 
 - `sampleB.test.bam` / `sampleB.test.bam.bai`: Test BAM with seeded variants.
 - `primers.test.bed`: Synthetic primer BED file for amplicon protocol testing.
 - `sampleA.capped.test.vcf`: Two LoFreq-style calls and a header that records `--max-depth 30`. Position 20 has 20 reads in `sampleA.test.depth.tsv`, under the cap. Position 100 has 60, so the cap lets LoFreq examine half of them. Input to `LOFREQ_DEPTH_CHECK`.
+- `purity.test.bam` / `.bai`: Reads mapped to two contigs, for `PURITY_BAM_STATS`. Contig `refA` has 4 reads at mapping quality 60 and 2 at 0, `refB` has 2, a secondary and a supplementary alignment are there to be left out, and 5 reads did not map: 3 plain, 1 poly-G and 1 with an Illumina adapter.
+- `purity.stock_counts.test.tsv`, `purity.unmapped_kinds.test.tsv`, `purity.pool_counts.test.tsv`, `purity.kraken2_report.test.txt`: Counts and a Kraken2 report in the formats `summarize_purity.py` reads. The numbers are in `tests/unit/test_summarize_purity.py`.
+- `stock.purity.test.tsv` / `.md`: `summarize_purity.py` run on the four files above. It flags a second pool genome and a species. Input to `STOCK_REPORT`.
+- `kraken2_db.test/`: Not a database. One file named `hash.k2d`, which is what `KRAKEN2_CLASSIFY` looks for before it runs, so the module can be tested without one.
+- `empty.test.fastq.gz`: A gzip file with no reads.
+- `stock.offtarget.test.fasta` / `.fai`: The second contig of `stock.multi.test.fasta`. The `sampleA` reads come from the first contig, so none of them maps here. It stands for a stock whose reads are of another virus.
 - `sampleA.test.ivar.tsv`: iVar `variants` output in iVar's real column layout, holding an SNV, an insertion inside a homopolymer run and an in-frame deletion.
 
 Stock reference fixtures, used by `-entry BUILD_STOCK_REFERENCE`:

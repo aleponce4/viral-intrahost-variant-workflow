@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **A purity check of the stock's reads (`STOCK_PURITY`, in `-entry BUILD_STOCK_REFERENCE`)**: with
+  `--stock_reads_1` and `--stock_reads_2` the reference step samples the first 1,000,000 read pairs
+  (`--purity_pairs`) and adds a "Purity" section to the stock report, with `<stock>.purity.md` and
+  `.tsv` beside it. It reports how many reads map to the stock reference. With `--purity_pool` it
+  also maps them to the other genomes, so a second strain shows as reads that fit another genome
+  best. Kraken2 cannot tell close strains apart, so mapping does this. With `--purity_kraken2_db` it
+  classifies the reads left over. Poly-G reads and reads with an Illumina adapter are counted and set
+  aside first, because most reads that do not map are one of those, and the poly-G reads were
+  classified as a phage. It reports and flags. It does not decide. Simulated reads from two other
+  genomes, added to real stock reads, were flagged by the pool step at 2.1% and 1.0% of the uniquely
+  placed reads. The launcher passes these arguments itself when `--stock-reads` is given, and adds
+  `--purity-kraken2-db`, `--purity-pairs` and `--no-purity`.
 - **The LoFreq depth cap is a parameter (`--lofreq_max_depth`, default 1000000), and calls made above it
   are flagged (`LOFREQ_DEPTH_CHECK`)**: `LOFREQ_CALL` passes the value to `lofreq call-parallel` as
   `--max-depth`. The default is LoFreq's own, so results do not change unless it is set. `lofreq call`

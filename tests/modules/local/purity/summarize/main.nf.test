@@ -1,0 +1,123 @@
+nextflow_process {
+
+    name "Test Process PURITY_SUMMARIZE"
+    script "modules/local/purity/summarize/main.nf"
+    process "PURITY_SUMMARIZE"
+
+    test("purity_summarize - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/purity.stock_counts.test.tsv", checkIfExists: true),
+                    file("${projectDir}/tests/data/purity.unmapped_kinds.test.tsv", checkIfExists: true) ]
+                input[1] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                input[2] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.tsv[0][1]).exists()
+            assert path(process.out.markdown[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    test("purity_summarize - with only the stock counts, nothing is flagged and the other parts are NA") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/purity.stock_counts.test.tsv", checkIfExists: true),
+                    file("${projectDir}/tests/data/purity.unmapped_kinds.test.tsv", checkIfExists: true) ]
+                input[1] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                input[2] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def lines = path(process.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('\t'), lines[1].split('\t')].transpose().collectEntries()
+            assert row.stock == 'stock-test'
+            assert row.reads_sampled == '1000000'
+            assert row.fraction_mapped_to_stock == '0.9500'
+            assert row.unmapped_polyg == '6000'
+            assert row.unmapped_adapter == '4000'
+            assert row.fraction_unexplained == '0.0400'
+            assert row.pool_top_genome == 'NA'
+            assert row.kraken_reads == 'NA'
+            assert row.flags == 'none'
+        }
+
+    }
+
+    // 95% of the reads map to the stock. The pool puts 7.3% of its uniquely placed reads on a
+    // genome other than the closest. Kraken2 puts 2.0% of all reads on one species.
+    test("purity_summarize - flags a second genome and a species when the counts show them") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/purity.stock_counts.test.tsv", checkIfExists: true),
+                    file("${projectDir}/tests/data/purity.unmapped_kinds.test.tsv", checkIfExists: true) ]
+                input[1] = file("${projectDir}/tests/data/purity.pool_counts.test.tsv", checkIfExists: true)
+                input[2] = file("${projectDir}/tests/data/purity.kraken2_report.test.txt", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def lines = path(process.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('\t'), lines[1].split('\t')].transpose().collectEntries()
+            assert row.pool_top_genome == 'strainA'
+            assert row.pool_other_max_genome == 'strainB'
+            assert row.pool_other_max_share == '0.0728'
+            assert row.kraken_reads == '50000'
+            assert row.kraken_top_species == 'Venezuelan equine encephalitis virus'
+            assert row.flags.contains('fit strainB best')
+            assert row.flags.contains('20,000 reads (2.0% of all) classify as Venezuelan equine encephalitis virus')
+
+            def md = path(process.out.markdown[0][1]).text
+            assert md.startsWith('## Purity')
+            assert md.contains('### Reads against the reference pool')
+            assert md.contains('### What the unmapped reads are')
+        }
+
+    }
+
+    test("purity_summarize - ext.args reaches the script") {
+        config "./flag_fraction.config"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/purity.stock_counts.test.tsv", checkIfExists: true),
+                    file("${projectDir}/tests/data/purity.unmapped_kinds.test.tsv", checkIfExists: true) ]
+                input[1] = file("${projectDir}/tests/data/purity.pool_counts.test.tsv", checkIfExists: true)
+                input[2] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            // With --flag-fraction 0.1 the second genome (7.3%) is no longer flagged.
+            def lines = path(process.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('\t'), lines[1].split('\t')].transpose().collectEntries()
+            assert row.flags == 'none'
+        }
+
+    }
+
+}

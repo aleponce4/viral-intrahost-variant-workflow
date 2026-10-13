@@ -272,6 +272,31 @@
           "format": "file-path",
           "description": "Primer scheme in lab-reference coordinates (BED6). Moved onto the stock, because ivar trim needs the coordinates of whatever the reads were aligned to."
         },
+        "stock_reads_1": {
+          "type": "string",
+          "format": "file-path",
+          "description": "The stock's forward reads (gzip FASTQ). With stock_reads_2 this turns on the purity check, which adds a section to the stock report."
+        },
+        "stock_reads_2": {
+          "type": "string",
+          "format": "file-path",
+          "description": "The stock's reverse reads (gzip FASTQ)."
+        },
+        "purity_pool": {
+          "type": "string",
+          "format": "file-path",
+          "description": "Related genomes (a multi-FASTA) the stock's reads are also mapped to, so a second strain shows as reads on a genome other than the closest one. Leave the stock's own strain out. Needs stock_reads_1 and stock_reads_2."
+        },
+        "purity_kraken2_db": {
+          "type": "string",
+          "description": "A Kraken2 database, as a directory or a .tar.gz, used to classify the reads that do not map to the stock. The process needs at least as much memory as the database is large. Needs stock_reads_1 and stock_reads_2."
+        },
+        "purity_pairs": {
+          "type": "integer",
+          "default": 1000000,
+          "minimum": 1,
+          "description": "The purity check uses the first N read pairs of the stock's reads."
+        },
         "liftover_tsv": {
           "type": "string",
           "format": "file-path",
@@ -400,6 +425,21 @@
     },
     "stock_primer_bed": {
       "$ref": "#/definitions/stock_reference_options/properties/stock_primer_bed"
+    },
+    "stock_reads_1": {
+      "$ref": "#/definitions/stock_reference_options/properties/stock_reads_1"
+    },
+    "stock_reads_2": {
+      "$ref": "#/definitions/stock_reference_options/properties/stock_reads_2"
+    },
+    "purity_pool": {
+      "$ref": "#/definitions/stock_reference_options/properties/purity_pool"
+    },
+    "purity_kraken2_db": {
+      "$ref": "#/definitions/stock_reference_options/properties/purity_kraken2_db"
+    },
+    "purity_pairs": {
+      "$ref": "#/definitions/stock_reference_options/properties/purity_pairs"
     },
     "liftover_tsv": {
       "$ref": "#/definitions/stock_reference_options/properties/liftover_tsv"

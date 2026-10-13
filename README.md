@@ -303,8 +303,14 @@ under two minutes on a real stock.
   Nextera) are counted and set aside before Kraken2. Left in, the poly-G reads were classified as a
   phage and made up 0.55% of all reads in our test. Set aside, 22 reads were left in that call.
 - **Kraken2 database.** A directory or a `.tar.gz`. The step needs at least as much memory as the
-  database is large. The viral database `k2_viral` is 0.5 GB and finds only viruses. A larger
-  index also finds bacteria and host, and needs memory to match.
+  database is large. `k2_viral` is 0.5 GB and finds viruses, which is what the purity question
+  asks. Host reads stay unclassified, and a larger stock database does not change that: every
+  prebuilt Kraken2 index except the very large `core_nt` and `nt` collections holds human as its
+  only animal, so a non-human host has nothing to match. Kraken2 also matches exact 35-mers by
+  default, so a database of other mammals will not reach a host tens of millions of years away
+  either. Labelling a non-human host means putting that host's own genome in a custom database.
+  A high unclassified fraction here means no known virus is hiding in those reads, which is an
+  answer rather than a gap.
 - **A flag says where to look.** It is not a verdict. The thresholds can be changed with
   `ext.args` on `PURITY_SUMMARIZE` (`--min-mapped`, `--flag-fraction`, `--min-reads`).
 - **Checked with a positive control.** Simulated reads from two other genomes were added to real
@@ -434,7 +440,7 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
 | `--lofreq_enable_baq` | `false` | Enable LoFreq base alignment quality (BAQ) |
 | `--stock_reads_1`, `--stock_reads_2` | `null` | The stock's paired reads. With `-entry BUILD_STOCK_REFERENCE` they turn on the purity check |
 | `--purity_pool` | `null` | Related genomes (a multi-FASTA) the stock's reads are also mapped to, to see a second strain |
-| `--purity_kraken2_db` | `null` | A Kraken2 database (directory or `.tar.gz`) for the reads that do not map to the stock |
+| `--purity_kraken2_db` | `null` | A Kraken2 database (directory or `.tar.gz`) for the reads that do not map to the stock. A viral database leaves a non-human host unclassified; see [Purity check](#purity-check) |
 | `--purity_pairs` | `1000000` | The purity check uses the first N read pairs |
 | `--liftover_tsv` | `null` | `qc/<stock>.liftover.tsv` from `BUILD_STOCK_REFERENCE`; adds lab-reference coordinates to annotated VCFs and the variant table |
 | `--viloca_window` | `150` | Window size for VILOCA local quasispecies reconstruction |

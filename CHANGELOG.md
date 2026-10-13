@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **The purity check's Kraken2 guidance says what a database can and cannot name**: a viral database
+  answers the purity question and leaves host reads unclassified. A larger stock database does not
+  fix that, because every prebuilt index except `core_nt` and `nt` holds human as its only animal,
+  and Kraken2's exact 35-mer matching does not reach a host tens of millions of years from one that
+  is in the database. The earlier wording said a larger index finds "host", which is true only when
+  the host is human.
+
 ### Added
 - **The reference and its annotation are checked before the run starts**: `INPUT_CHECK` now refuses a
   GFF3 whose CDS features no transcript reaches, which is what `bcftools csq` needs, and names the

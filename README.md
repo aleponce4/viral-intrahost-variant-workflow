@@ -100,6 +100,30 @@ flowchart TD
    scripts/run_stock_workflow.sh --help
    ```
 
+### What the annotation has to look like
+
+`bcftools csq` reads `gene` then `transcript` then `CDS`. A GFF3 that attaches a CDS straight to
+its gene gives it zero transcripts, so nothing is annotated:
+
+```
+# bcftools csq cannot use this
+contig  RefSeq  gene  43  1329  .  +  .  ID=gene-S;Name=S
+contig  RefSeq  CDS   43  1329  .  +  0  ID=cds-S;Parent=gene-S
+
+# it can use this
+contig  RefSeq  gene  43  1329  .  +  .  ID=gene-S;Name=S
+contig  RefSeq  mRNA  43  1329  .  +  .  ID=rna-S;Parent=gene-S
+contig  RefSeq  CDS   43  1329  .  +  0  ID=cds-S;Parent=rna-S
+```
+
+The names in the GFF3 and the FASTA also have to match, because `bcftools csq` annotates nothing
+and reports no error when they differ.
+
+The run checks all of this before anything else starts, and says which line to add. A GFF3 that
+covers other contigs as well is fine: a segmented genome is run one segment at a time, and the
+extra features are reported and ignored. `bin/parse_gb_to_gff3.py` writes a GFF3 of the right
+shape from a GenBank record.
+
 ---
 
 ## Characterising a virus stock against its own sequence
@@ -390,10 +414,10 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
 |---|---|---|
 | `--input` | `null` | Path to samplesheet CSV |
 | `--fasta` | `null` | Reference FASTA file |
-| `--gff` | `null` | Annotation GFF3 file (must contain `CDS` features) |
+| `--gff` | `null` | Annotation GFF3. Needs `CDS` features reachable through a transcript, on a contig the FASTA holds. Both are checked before the run starts |
 | `--outdir` | `./results` | Directory for published results |
 | `--dataset` | `viral_analysis` | Dataset label used in reporting outputs |
-| `--viral_contig` | `null` | Target viral contig name (extracted dynamically if null) |
+| `--viral_contig` | `null` | Target viral contig name (extracted dynamically if null). Checked against the FASTA before the run starts |
 | `--publish_dir_mode` | `copy` | Method for publishing output files (`copy`, `symlink`, `link`) |
 | `--ivar_min_depth` | `10` | Minimum depth threshold to examine positions for iVar variant calling |
 | `--ivar_min_freq` | `0.001` | Minimum allele frequency to report for iVar (proportion 0-1) |

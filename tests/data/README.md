@@ -10,6 +10,9 @@ This directory contains test datasets used by `nf-test` and the `-profile test` 
 - `sampleB.test.bam` / `sampleB.test.bam.bai`: Test BAM with seeded variants.
 - `primers.test.bed`: Synthetic primer BED file for amplicon protocol testing.
 - `sampleA.capped.test.vcf`: Two LoFreq-style calls and a header that records `--max-depth 30`. Position 20 has 20 reads in `sampleA.test.depth.tsv`, under the cap. Position 100 has 60, so the cap lets LoFreq examine half of them. Input to `LOFREQ_DEPTH_CHECK`.
+- `viral_ref.no_transcript.test.gff3`: `viral_ref.test.gff3` with the `mRNA` line removed and the CDS pointing at the gene. The shape `bcftools csq` cannot use, and the shape real annotations arrive in.
+- `viral_ref.other_contig.test.gff3`: a sound annotation of a contig the test FASTA does not hold.
+- `viral_ref.two_contigs.test.gff3`: annotations for the test contig and for one more, as a segmented genome's annotation looks. It has to be accepted.
 - `purity.test.bam` / `.bai`: Reads mapped to two contigs, for `PURITY_BAM_STATS`. Contig `refA` has 4 reads at mapping quality 60 and 2 at 0, `refB` has 2, a secondary and a supplementary alignment are there to be left out, and 5 reads did not map: 3 plain, 1 poly-G and 1 with an Illumina adapter.
 - `purity.stock_counts.test.tsv`, `purity.unmapped_kinds.test.tsv`, `purity.pool_counts.test.tsv`, `purity.kraken2_report.test.txt`: Counts and a Kraken2 report in the formats `summarize_purity.py` reads. The numbers are in `tests/unit/test_summarize_purity.py`.
 - `stock.purity.test.tsv` / `.md`: `summarize_purity.py` run on the four files above. It flags a second pool genome and a species. Input to `STOCK_REPORT`.

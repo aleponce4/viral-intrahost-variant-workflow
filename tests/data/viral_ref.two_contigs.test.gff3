@@ -1,0 +1,10 @@
+##gff-version 3
+##sequence-region KP282671.1 1 11444
+KP282671.1	RefSeq	region	1	11444	.	+	.	ID=region0;Name=KP282671.1
+KP282671.1	RefSeq	gene	50	7549	.	+	.	ID=gene0;Name=nonstructural_polyprotein;biotype=protein_coding
+KP282671.1	RefSeq	mRNA	50	7549	.	+	.	ID=rna0;Parent=gene0;Name=nonstructural_polyprotein;biotype=protein_coding
+KP282671.1	RefSeq	CDS	50	7549	.	+	0	ID=cds0;Parent=rna0;Name=nsP1-4;protein_id=YP_009118625.1
+SEGMENT_TWO	RefSeq	region	1	11444	.	+	.	ID=region1;Name=SEGMENT_TWO
+SEGMENT_TWO	RefSeq	gene	50	7549	.	+	.	ID=gene1;Name=nonstructural_polyprotein;biotype=protein_coding
+SEGMENT_TWO	RefSeq	mRNA	50	7549	.	+	.	ID=rna1;Parent=gene1;Name=nonstructural_polyprotein;biotype=protein_coding
+SEGMENT_TWO	RefSeq	CDS	50	7549	.	+	0	ID=cds1;Parent=rna1;Name=nsP1-4;protein_id=YP_009118625.1

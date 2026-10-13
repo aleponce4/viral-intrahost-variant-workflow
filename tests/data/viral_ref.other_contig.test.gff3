@@ -1,0 +1,6 @@
+##gff-version 3
+##sequence-region SOME_OTHER_CONTIG 1 11444
+SOME_OTHER_CONTIG	RefSeq	region	1	11444	.	+	.	ID=region0;Name=SOME_OTHER_CONTIG
+SOME_OTHER_CONTIG	RefSeq	gene	50	7549	.	+	.	ID=gene0;Name=nonstructural_polyprotein;biotype=protein_coding
+SOME_OTHER_CONTIG	RefSeq	mRNA	50	7549	.	+	.	ID=rna0;Parent=gene0;Name=nonstructural_polyprotein;biotype=protein_coding
+SOME_OTHER_CONTIG	RefSeq	CDS	50	7549	.	+	0	ID=cds0;Parent=rna0;Name=nsP1-4;protein_id=YP_009118625.1

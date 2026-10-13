@@ -28,4 +28,127 @@ nextflow_workflow {
 
     }
 
+    // bcftools csq reads gene -> transcript -> CDS. A CDS attached straight to its gene leaves
+    // it with zero transcripts, and the run used to die at BCFTOOLS_CSQ, after alignment and
+    // variant calling had already run.
+    test("input_check - a CDS with no transcript above it is refused, with the fix named") {
+
+        when {
+            params {
+                input = "${projectDir}/assets/samplesheet.test.csv"
+                fasta = "${projectDir}/tests/data/viral_ref.test.fasta"
+                gff   = "${projectDir}/tests/data/viral_ref.no_transcript.test.gff3"
+            }
+            workflow {
+                """
+                input[0] = file("${projectDir}/assets/samplesheet.test.csv", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains('no CDS that bcftools csq can use') }
+            assert workflow.stdout.any { it.contains('name a gene (ID=gene0) as their Parent') }
+            assert workflow.stdout.any { it.contains('parse_gb_to_gff3.py') }
+        }
+
+    }
+
+    // bcftools csq annotates nothing, and says nothing, when the names do not match.
+    test("input_check - a GFF for another contig is refused") {
+
+        when {
+            params {
+                input = "${projectDir}/assets/samplesheet.test.csv"
+                fasta = "${projectDir}/tests/data/viral_ref.test.fasta"
+                gff   = "${projectDir}/tests/data/viral_ref.other_contig.test.gff3"
+            }
+            workflow {
+                """
+                input[0] = file("${projectDir}/assets/samplesheet.test.csv", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains('do not name the same contig') }
+            assert workflow.stdout.any { it.contains('SOME_OTHER_CONTIG') }
+            assert workflow.stdout.any { it.contains('KP282671.1') }
+        }
+
+    }
+
+    // A segmented genome is run one segment at a time against one annotation file, so a GFF
+    // that also covers other segments has to be allowed through.
+    test("input_check - a GFF covering other contigs too is allowed") {
+
+        when {
+            params {
+                input = "${projectDir}/assets/samplesheet.test.csv"
+                fasta = "${projectDir}/tests/data/viral_ref.test.fasta"
+                gff   = "${projectDir}/tests/data/viral_ref.two_contigs.test.gff3"
+            }
+            workflow {
+                """
+                input[0] = file("${projectDir}/assets/samplesheet.test.csv", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            // It warns about the contig the FASTA does not hold and carries on. The warning
+            // text is not asserted here, because log.warn does not reach nf-test's stdout.
+            assert workflow.success
+            assert workflow.out.gff != null
+        }
+
+    }
+
+    test("input_check - a viral_contig that the reference does not hold is refused") {
+
+        when {
+            params {
+                input        = "${projectDir}/assets/samplesheet.test.csv"
+                fasta        = "${projectDir}/tests/data/viral_ref.test.fasta"
+                gff          = "${projectDir}/tests/data/viral_ref.test.gff3"
+                viral_contig = "NOT_IN_THE_REFERENCE"
+            }
+            workflow {
+                """
+                input[0] = file("${projectDir}/assets/samplesheet.test.csv", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("--viral_contig 'NOT_IN_THE_REFERENCE' is not in") }
+        }
+
+    }
+
+    test("input_check - the contig the reference does hold is accepted") {
+
+        when {
+            params {
+                input        = "${projectDir}/assets/samplesheet.test.csv"
+                fasta        = "${projectDir}/tests/data/viral_ref.test.fasta"
+                gff          = "${projectDir}/tests/data/viral_ref.test.gff3"
+                viral_contig = "KP282671.1"
+            }
+            workflow {
+                """
+                input[0] = file("${projectDir}/assets/samplesheet.test.csv", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+        }
+
+    }
+
 }

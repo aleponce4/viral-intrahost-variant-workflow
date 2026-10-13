@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The reference and its annotation are checked before the run starts**: `INPUT_CHECK` now refuses a
+  GFF3 whose CDS features no transcript reaches, which is what `bcftools csq` needs, and names the
+  line to add. Before this, such a GFF3 passed the existing CDS check and the run died at
+  `BCFTOOLS_CSQ` with "No usable transcripts found" after alignment and variant calling had already
+  run. On a real amplicon library that was 15 minutes of work thrown away; the check now stops it in
+  5 seconds. It also refuses a GFF3 and a FASTA that share no contig name, which `bcftools csq`
+  answers by annotating nothing and reporting no error, and a `--viral_contig` the FASTA does not
+  hold, which yields an empty BAM and no calls. A GFF3 that covers other contigs as well is allowed
+  and reported, because a segmented genome is run one segment at a time.
 - **A purity check of the stock's reads (`STOCK_PURITY`, in `-entry BUILD_STOCK_REFERENCE`)**: with
   `--stock_reads_1` and `--stock_reads_2` the reference step samples the first 1,000,000 read pairs
   (`--purity_pairs`) and adds a "Purity" section to the stock report, with `<stock>.purity.md` and

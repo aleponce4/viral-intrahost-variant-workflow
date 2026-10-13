@@ -475,5 +475,134 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(self.calls(), [])
 
 
+    # --- purity check -------------------------------------------------------
+
+    def purity_db(self):
+        d = self.p('k2db')
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    def reference_call(self):
+        refs = [c for c in self.calls() if '-entry BUILD_STOCK_REFERENCE' in c['args']]
+        self.assertEqual(len(refs), 1)
+        return refs[0]['args']
+
+    def test_purity_reads_and_pool_reach_the_reference_step_only(self):
+        self.run_launcher(*self.full())
+        ref = self.reference_call()
+        self.assertIn(f'--stock_reads_1 {self.p("R1.fq.gz")} --stock_reads_2 {self.p("R2.fq.gz")}', ref)
+        self.assertIn(f'--purity_pool {self.p("pool.fa")}', ref)
+        self.assertNotIn('--purity_kraken2_db', ref)
+        self.assertNotIn('--purity_pairs', ref)
+        others = [c['args'] for c in self.calls() if '-entry BUILD_STOCK_REFERENCE' not in c['args']]
+        self.assertEqual(len(others), 2)
+        for args in others:
+            self.assertNotIn('--stock_reads_1', args)
+            self.assertNotIn('--purity_pool', args)
+
+    def test_database_and_pairs_reach_the_reference_step(self):
+        result = self.run_launcher(*self.full('--purity-kraken2-db', self.purity_db(), '--purity-pairs', '5000'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        ref = self.reference_call()
+        self.assertIn(f'--purity_kraken2_db {self.p("k2db")}', ref)
+        self.assertIn('--purity_pairs 5000', ref)
+
+    def test_a_database_given_as_a_relative_path_is_made_absolute(self):
+        self.purity_db()
+        self.run_launcher(*self.full('--purity-kraken2-db', 'k2db'))
+        self.assertIn(f'--purity_kraken2_db {self.p("k2db")}', self.reference_call())
+
+    def test_a_tar_gz_database_is_accepted(self):
+        open(self.p('k2.tar.gz'), 'w').close()
+        result = self.run_launcher(*self.full('--purity-kraken2-db', self.p('k2.tar.gz')))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f'--purity_kraken2_db {self.p("k2.tar.gz")}', self.reference_call())
+
+    def test_no_purity_leaves_the_reference_step_without_purity_arguments(self):
+        result = self.run_launcher(*self.full('--no-purity'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        ref = self.reference_call()
+        for arg in ('--stock_reads_1', '--stock_reads_2', '--purity_pool'):
+            self.assertNotIn(arg, ref)
+        self.assertNotIn('purity', result.stdout)
+
+    def test_the_purity_check_uses_the_full_reads_not_the_stage_a_subsample(self):
+        args = self.with_real_reads(10)
+        self.run_launcher(*args, '--stage-a-pairs', '4')
+        ref = self.reference_call()
+        self.assertIn(f'--stock_reads_1 {self.p("real_R1.fastq.gz")}', ref)
+        self.assertNotIn('subsample', ref)
+
+    def test_purity_is_skipped_with_a_note_when_there_are_no_reads(self):
+        result = self.run_launcher('--stock', 's1', '--outdir', self.out, '--step', 'reference',
+                                   '--consensus', self.p('my.consensus.fasta'),
+                                   '--lab-fasta', self.p('lab.fa'), '--lab-gff', self.p('lab.gff3'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('no --stock-reads, so the purity check is skipped', result.stdout)
+        self.assertNotIn('--stock_reads_1', self.reference_call())
+
+    def test_a_missing_pool_is_noted_and_the_check_still_runs(self):
+        result = self.run_launcher('--stock', 's1', '--outdir', self.out, '--step', 'reference',
+                                   '--consensus', self.p('my.consensus.fasta'),
+                                   '--stock-reads', self.p('R1.fq.gz'), self.p('R2.fq.gz'),
+                                   '--lab-fasta', self.p('lab.fa'), '--lab-gff', self.p('lab.gff3'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('no --reference-pool, so the purity check cannot look for a second strain', result.stdout)
+        ref = self.reference_call()
+        self.assertIn('--stock_reads_1', ref)
+        self.assertNotIn('--purity_pool', ref)
+
+    def test_a_reference_step_run_alone_checks_the_reads_exist(self):
+        result = self.run_launcher('--stock', 's1', '--outdir', self.out, '--step', 'reference',
+                                   '--consensus', self.p('my.consensus.fasta'),
+                                   '--stock-reads', self.p('gone_R1.fq.gz'), self.p('R2.fq.gz'),
+                                   '--lab-fasta', self.p('lab.fa'), '--lab-gff', self.p('lab.gff3'))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('gone_R1.fq.gz', result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_a_database_that_does_not_exist_is_named(self):
+        result = self.run_launcher(*self.full('--purity-kraken2-db', self.p('nope')))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--purity-kraken2-db: not found', result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_database_or_pairs_without_reads_is_refused(self):
+        base = ['--stock', 's1', '--outdir', self.out, '--step', 'reference',
+                '--consensus', self.p('my.consensus.fasta'),
+                '--lab-fasta', self.p('lab.fa'), '--lab-gff', self.p('lab.gff3')]
+        for extra in (['--purity-kraken2-db', self.purity_db()], ['--purity-pairs', '100']):
+            result = self.run_launcher(*base, *extra)
+            self.assertEqual(result.returncode, 2, extra)
+            self.assertIn('needs --stock-reads', result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_no_purity_with_a_purity_option_is_refused(self):
+        for extra in (['--purity-kraken2-db', self.purity_db()], ['--purity-pairs', '100']):
+            result = self.run_launcher(*self.full('--no-purity', *extra))
+            self.assertEqual(result.returncode, 2, extra)
+            self.assertIn('--no-purity switches the purity check off', result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_purity_pairs_values_that_are_not_positive_whole_numbers_are_refused(self):
+        for bad in ('0', '-3', '1.5', 'many', '', '00'):
+            result = self.run_launcher(*self.full('--purity-pairs', bad))
+            self.assertEqual(result.returncode, 2, repr(bad))
+            self.assertIn('--purity-pairs must be a positive whole number', result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_purity_pairs_with_a_leading_zero_is_read_as_decimal(self):
+        result = self.run_launcher(*self.full('--purity-pairs', '08'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('--purity_pairs 8', self.reference_call())
+
+    def test_dry_run_shows_the_purity_arguments(self):
+        result = self.run_launcher(*self.full('--purity-pairs', '2000'), '--dry-run')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('--stock_reads_1', result.stdout)
+        self.assertIn('--purity_pairs 2000', result.stdout)
+        self.assertEqual(self.calls(), [])
+
+
 if __name__ == '__main__':
     unittest.main()

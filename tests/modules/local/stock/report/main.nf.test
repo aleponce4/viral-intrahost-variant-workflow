@@ -24,6 +24,8 @@ nextflow_process {
                 input[4] = [ [ id: 'stock-test' ],
                     file("${projectDir}/tests/data/stock.unmapped.test.txt", checkIfExists: true) ]
                 input[5] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                input[6] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                input[7] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
                 """
             }
         }
@@ -55,6 +57,8 @@ nextflow_process {
                 input[4] = [ [ id: 'stock-test' ],
                     file("${projectDir}/tests/data/stock.unmapped.test.txt", checkIfExists: true) ]
                 input[5] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                input[6] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                input[7] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
                 """
             }
         }
@@ -82,6 +86,88 @@ nextflow_process {
             assert md.contains('KP282671.1')
             // The report has to say why a per-stock reference is worth having.
             assert md.contains('fixed differences')
+        }
+
+    }
+
+    // The fixture purity files flag a second pool genome and a species, so the page has to
+    // carry the section and put both flags under "Worth a look".
+    test("stock_report - adds the purity section and its flags when the purity check ran") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.annotation_check.test.tsv", checkIfExists: true) ]
+                input[2] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.liftover_summary.test.tsv", checkIfExists: true) ]
+                input[3] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.orientation.test.txt", checkIfExists: true) ]
+                input[4] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.unmapped.test.txt", checkIfExists: true) ]
+                input[5] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                input[6] = file("${projectDir}/tests/data/stock.purity.test.tsv", checkIfExists: true)
+                input[7] = file("${projectDir}/tests/data/stock.purity.test.md", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('\t'), lines[1].split('\t')].transpose().collectEntries()
+            assert row.fraction_reads_mapped_to_stock == '0.9500'
+            assert row.flags.contains('purity: 70,000 reads')
+            assert row.flags.contains('purity: 20,000 reads')
+
+            def md = path(process.out.markdown[0][1]).text
+            assert md.contains('## Purity')
+            assert md.contains('### Reads against the reference pool')
+            // The purity section comes before the list of things to look at, and the list
+            // repeats its flags.
+            assert md.indexOf('## Purity') < md.indexOf('## Worth a look')
+            assert md.substring(md.indexOf('## Worth a look')).contains('purity: 70,000 reads')
+        }
+
+    }
+
+    test("stock_report - without purity files the purity column is NA and there is no section") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ]
+                input[1] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.annotation_check.test.tsv", checkIfExists: true) ]
+                input[2] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.liftover_summary.test.tsv", checkIfExists: true) ]
+                input[3] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.orientation.test.txt", checkIfExists: true) ]
+                input[4] = [ [ id: 'stock-test' ],
+                    file("${projectDir}/tests/data/stock.unmapped.test.txt", checkIfExists: true) ]
+                input[5] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                input[6] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                input[7] = file("${projectDir}/assets/NO_FILE", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def lines = path(process.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('\t'), lines[1].split('\t')].transpose().collectEntries()
+            assert row.fraction_reads_mapped_to_stock == 'NA'
+            assert !path(process.out.markdown[0][1]).text.contains('## Purity')
         }
 
     }

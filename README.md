@@ -26,13 +26,15 @@ There are two ways in:
 flowchart TD
     subgraph LAUNCH["scripts/run_stock_workflow.sh: one command, three Nextflow runs"]
         SA["Stage A: nf-core/viralmetagenome 1.2.0<br/>de novo assembly, scaffolding,<br/>iterative consensus<br/>optional: --consensus skips it"]
-        BR["BUILD_STOCK_REFERENCE<br/>orient, name the contig, Liftoff annotation,<br/>reading-frame check, liftover table"]
+        BR["BUILD_STOCK_REFERENCE<br/>orient, name the contig, Liftoff annotation,<br/>reading-frame check, liftover table,<br/>purity check of the reads"]
         MW["Main workflow (diagram below)<br/>run on the stock reference"]
         SA -->|consensus FASTA| BR
         BR -->|stock FASTA and GFF3| MW
     end
     READS["stock reads (FASTQ)"] --> SA
+    READS -.->|"sample for the purity check"| BR
     POOL["reference pool (FASTA)"] --> SA
+    POOL -.-> BR
     LAB["lab reference FASTA and GFF3"] --> BR
     SAMPLES["samplesheet.csv<br/>the samples of this stock"] --> MW
     BR -.->|"liftover table (--liftover_tsv)"| MW
@@ -140,6 +142,10 @@ scripts/run_stock_workflow.sh \
   have, and Stage A is skipped.
 - `--primer-bed` takes a primer scheme in lab-reference coordinates. It is moved onto the
   stock, and the variant run switches to `--protocol amplicon`.
+- The purity check runs inside the reference step whenever `--stock-reads` is given, and puts a
+  "Purity" section in the stock report (see [Purity check](#purity-check)). `--reference-pool` is
+  used for it too. `--purity-kraken2-db DB` adds Kraken2, `--purity-pairs N` changes how many read
+  pairs are sampled, and `--no-purity` skips it.
 - `--profile` picks the container engine: `docker` (default), `apptainer` or `singularity`.
   Set `STOCK_WORKFLOW_PROFILE` once to change the default for your site. With Apptainer or
   Singularity, set `NXF_APPTAINER_CACHEDIR` or `NXF_SINGULARITY_CACHEDIR` so images are
@@ -231,12 +237,58 @@ back to the lab reference. Outputs land in `<outdir>/StockReference/<stock_name>
 | `<stock>.orientation.txt` | whether the consensus was used as assembled or reverse-complemented |
 | `<stock>.stock_report.md`, `.tsv` | one page: distance from the lab reference, annotation, anything to look at |
 | `<stock>.primers.bed` | the primer scheme in this stock's coordinates, when `--stock_primer_bed` was given |
+| `<stock>.purity.md`, `.tsv` | the purity check, when `--stock_reads_1` and `--stock_reads_2` were given. The report carries the same section |
+| `qc/purity/` | the read counts behind the purity check, and the Kraken2 report |
 | `qc/<stock>.annotation_check.tsv` | per-CDS frame and stop-codon checks |
 | `qc/<stock>.liftover.tsv` | every stock position against its reference position |
 
 Then run the pipeline once per stock, pointing `--fasta` and `--gff` at those two
 files. Use `qc/<stock>.liftover.tsv` to put results from different stocks on one
 coordinate system.
+
+### Purity check
+
+A stock should hold one virus. Give `BUILD_STOCK_REFERENCE` the stock's reads and it adds a
+"Purity" section to the stock report. The launcher does this itself when `--stock-reads` is given.
+
+```bash
+nextflow run . -entry BUILD_STOCK_REFERENCE -profile docker \
+  --stock_consensus stock_consensus.fasta --stock_name my_stock \
+  --fasta lab_reference.fasta --gff lab_reference.gff3 \
+  --stock_reads_1 stock_R1.fastq.gz --stock_reads_2 stock_R2.fastq.gz \
+  --purity_pool reference_pool.fasta \
+  --purity_kraken2_db k2_viral_20230314.tar.gz \
+  --outdir ./refs
+```
+
+It samples the first 1,000,000 read pairs (`--purity_pairs`) and asks three questions. It ran in
+under two minutes on a real stock.
+
+| Question | How | A pure stock |
+|---|---|---|
+| Do the reads map to the stock? | `bwa mem` to the stock reference | nearly all of them. 97% in a purified stock we tested |
+| Do any go to a different strain? | each read goes to the best of the genomes in `--purity_pool` | almost all on the genome closest to the stock |
+| What are the rest? | Kraken2 on the reads that map to nothing, when `--purity_kraken2_db` is given | little that is not an artefact |
+
+- **Another strain.** A genome other than the closest one is flagged when it holds 1% or more of the
+  reads placed uniquely on the pool, and at least 100 reads. Reads that fit two genomes equally well
+  (mapping quality 0) are left out of those shares. Kraken2 cannot tell close strains apart, so
+  mapping does this job. Use the pool you gave Stage A.
+- **Artefacts.** Most reads that do not map are not another virus. Reads with a run of 20 Gs
+  (poly-G, where the instrument saw no signal) and reads that carry an Illumina adapter (TruSeq or
+  Nextera) are counted and set aside before Kraken2. Left in, the poly-G reads were classified as a
+  phage and made up 0.55% of all reads in our test. Set aside, 22 reads were left in that call.
+- **Kraken2 database.** A directory or a `.tar.gz`. The step needs at least as much memory as the
+  database is large. The viral database `k2_viral` is 0.5 GB and finds only viruses. A larger
+  index also finds bacteria and host, and needs memory to match.
+- **A flag says where to look.** It is not a verdict. The thresholds can be changed with
+  `ext.args` on `PURITY_SUMMARIZE` (`--min-mapped`, `--flag-fraction`, `--min-reads`).
+- **Checked with a positive control.** Simulated reads from two other genomes were added to real
+  stock reads, 2% from a close strain (about 96% identical) and 1% from a distant one. Both were
+  flagged by the pool step, at 2.1% and 1.0% of the uniquely placed reads. The close strain maps to
+  the stock reference almost as well as the stock's own reads, so only the pool step sees it.
+- **Limit.** It samples the first reads of the file. That is fine for the usual random order of a
+  library. If your FASTQ is sorted in some way, shuffle or subsample it first.
 
 ### Amplicon stocks
 
@@ -356,6 +408,10 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
 | `--lofreq_max_depth` | `1000000` | Depth at which LoFreq stops counting reads. Above it a call's VAF comes from the first reads LoFreq meets, not from all of them, and can differ from the full-depth value. Raise it for libraries deeper than this. `LoFreq/<sample>/<sample>.depth_check.tsv` flags the calls it affected |
 | `--lofreq_enable_indelqual` | `false` | Enable LoFreq indel quality assessment |
 | `--lofreq_enable_baq` | `false` | Enable LoFreq base alignment quality (BAQ) |
+| `--stock_reads_1`, `--stock_reads_2` | `null` | The stock's paired reads. With `-entry BUILD_STOCK_REFERENCE` they turn on the purity check |
+| `--purity_pool` | `null` | Related genomes (a multi-FASTA) the stock's reads are also mapped to, to see a second strain |
+| `--purity_kraken2_db` | `null` | A Kraken2 database (directory or `.tar.gz`) for the reads that do not map to the stock |
+| `--purity_pairs` | `1000000` | The purity check uses the first N read pairs |
 | `--liftover_tsv` | `null` | `qc/<stock>.liftover.tsv` from `BUILD_STOCK_REFERENCE`; adds lab-reference coordinates to annotated VCFs and the variant table |
 | `--viloca_window` | `150` | Window size for VILOCA local quasispecies reconstruction |
 | `--viloca_shift` | `50` | Window shift step for VILOCA local quasispecies reconstruction |
@@ -562,6 +618,11 @@ If you use the `SELECTION` subworkflow, please cite SNPGenie in addition to this
 > Nelson CW, Moncla LH, Hughes AL (2015). SNPGenie: estimating evolutionary parameters to detect
 > natural selection using pooled next-generation sequencing data. *Bioinformatics*
 > **31**(22):3709–3711. doi:[10.1093/bioinformatics/btv449](https://doi.org/10.1093/bioinformatics/btv449)
+
+If you use the stock purity check with a Kraken2 database, please cite Kraken 2 as well:
+
+> Wood DE, Lu J, Langmead B (2019). Improved metagenomic analysis with Kraken 2. *Genome Biology*
+> **20**:257. doi:[10.1186/s13059-019-1891-0](https://doi.org/10.1186/s13059-019-1891-0)
 
 ---
 

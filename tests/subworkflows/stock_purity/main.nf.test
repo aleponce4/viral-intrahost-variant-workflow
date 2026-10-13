@@ -1,0 +1,164 @@
+nextflow_workflow {
+
+    name "Test Subworkflow STOCK_PURITY"
+    script "subworkflows/local/stock_purity.nf"
+    workflow "STOCK_PURITY"
+
+    // The fixture reads are 100 pairs of sampleA, which come from the lab reference. The
+    // fixture stock is that reference with one substitution and a few small indels, so
+    // every read maps to it. The pool is the same sequence split into two contigs, so the
+    // reads fall on one or the other.
+    test("stock_purity - reads, stock and pool give the counts and no flag") {
+
+        when {
+            params {
+                purity_pool = "${projectDir}/tests/data/stock.multi.test.fasta"
+            }
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/sampleA.test_1.fastq.gz", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test_2.fastq.gz", checkIfExists: true)
+                ])
+                input[2] = Channel.value([
+                    [ id: 'pool' ],
+                    file("${projectDir}/tests/data/stock.multi.test.fasta", checkIfExists: true)
+                ])
+                input[3] = Channel.empty()
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            def lines = path(workflow.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('\t'), lines[1].split('\t')].transpose().collectEntries()
+            assert row.stock == 'TC83-stock'
+            assert row.reads_sampled == '200'
+            assert row.reads_mapped_to_stock == '200'
+            assert row.fraction_mapped_to_stock == '1.0000'
+            assert row.unmapped_polyg == '0'
+            assert row.unmapped_adapter == '0'
+            assert row.pool_top_genome.startsWith('NODE_')
+            assert row.kraken_reads == 'NA'
+            assert row.flags == 'none'
+            assert path(workflow.out.markdown[0][1]).text.startsWith('## Purity')
+
+            // Both mappings ran, and Kraken2 did not.
+            def names = workflow.trace.tasks().collect { it.name }
+            assert names.any { it.contains('PURITY_STOCK_MEM') }
+            assert names.any { it.contains('PURITY_POOL_MEM') }
+            assert !names.any { it.contains('KRAKEN2_CLASSIFY') }
+        }
+
+    }
+
+    test("stock_purity - without a pool the pool part is skipped") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/sampleA.test_1.fastq.gz", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test_2.fastq.gz", checkIfExists: true)
+                ])
+                input[2] = Channel.empty()
+                input[3] = Channel.empty()
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            def lines = path(workflow.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('\t'), lines[1].split('\t')].transpose().collectEntries()
+            assert row.fraction_mapped_to_stock == '1.0000'
+            assert row.pool_top_genome == 'NA'
+            assert row.flags == 'none'
+            assert !workflow.trace.tasks().collect { it.name }.any { it.contains('PURITY_POOL') }
+        }
+
+    }
+
+    // The "stock" here is the second contig of the pool fixture. The fixture reads come from the
+    // first contig, so none of them has anywhere to go. That is what a stock looks like when
+    // the reads are of a different virus.
+    test("stock_purity - reads that do not map to the stock are counted and flagged") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'off-target' ],
+                    file("${projectDir}/tests/data/stock.offtarget.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.offtarget.test.fasta.fai", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'off-target' ],
+                    file("${projectDir}/tests/data/sampleA.test_1.fastq.gz", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test_2.fastq.gz", checkIfExists: true)
+                ])
+                input[2] = Channel.empty()
+                input[3] = Channel.empty()
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            def lines = path(workflow.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('\t'), lines[1].split('\t')].transpose().collectEntries()
+            assert row.reads_sampled == '200'
+            assert row.reads_mapped_to_stock == '0'
+            assert row.reads_unmapped_to_stock == '200'
+            assert row.fraction_mapped_to_stock == '0.0000'
+            assert row.flags == 'only 0.0% of the reads map to the stock reference'
+        }
+
+    }
+
+    test("stock_purity - Kraken2 runs on the reads that did not map when a database is given") {
+        options "-stub"
+
+        when {
+            params {
+                purity_kraken2_db = "${projectDir}/tests/data/kraken2_db.test"
+            }
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/stock.test.fasta", checkIfExists: true),
+                    file("${projectDir}/tests/data/stock.test.fasta.fai", checkIfExists: true)
+                ])
+                input[1] = Channel.of([
+                    [ id: 'TC83-stock' ],
+                    file("${projectDir}/tests/data/sampleA.test_1.fastq.gz", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test_2.fastq.gz", checkIfExists: true)
+                ])
+                input[2] = Channel.empty()
+                input[3] = Channel.value(file("${projectDir}/tests/data/kraken2_db.test", checkIfExists: true))
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().collect { it.name }.any { it.contains('KRAKEN2_CLASSIFY') }
+        }
+
+    }
+
+}

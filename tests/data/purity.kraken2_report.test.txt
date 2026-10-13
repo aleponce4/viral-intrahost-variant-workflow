@@ -1,0 +1,7 @@
+ 40.00	20000	20000	U	0	unclassified
+ 60.00	30000	0	R	1	root
+ 50.00	25000	0	D	10239	  Viruses
+ 10.00	5000	0	D	2	  Bacteria
+ 40.00	20000	20000	S	11036	      Venezuelan equine encephalitis virus
+ 10.00	5000	5000	S	562	        Escherichia coli
+  0.20	100	100	S	9606	        Homo sapiens

@@ -42,14 +42,18 @@ flowchart TD
         G3 --> G4["STOCK_CHECK_ANNOTATION<br/>reading frames"]
         G2 --> G5["MINIMAP2_LIFTOVER"] --> G6["STOCK_LIFTOVER_TABLE<br/>stock to lab positions"]
         G6 -.->|"only with --stock_primer_bed"| G7["STOCK_LIFTOVER_BED<br/>primers on the stock"]
+        G2 -.->|"only with --stock_reads_1"| G9["STOCK_PURITY<br/>reads against the stock and the pool,<br/>Kraken2 on what is left"]
         G2 & G3 & G4 & G6 --> G8["STOCK_REPORT"]
+        G9 -.-> G8
     end
     subgraph M["Main workflow on the stock reference"]
         M1["READ_PREPROCESSING, VARIANT_CALLING,<br/>COVERAGE_QC, SELECTION, HAPLOTYPE"] --> M2["ANNOTATION<br/>+ APPEND_REF_COORDS_VCF"]
         M2 --> M3["REPORTING<br/>+ APPEND_REF_COORDS_TABLE"]
     end
     READS["stock reads"] --> A1
+    READS -.-> G9
     POOL["reference pool"] --> A2
+    POOL -.-> G9
     A3 -->|consensus FASTA| G1
     LAB["lab reference FASTA and GFF3"] --> G1
     G2 -->|stock FASTA| M1
@@ -75,7 +79,7 @@ The pipeline follows strict Nextflow DSL2 modularity conventions:
 | **`SELECTION`** | Executes SNPGenie per-sample for nucleotide diversity ($\pi_N$, $\pi_S$) and $d_N/d_S$ ratios, followed by non-parametric Kruskal-Wallis & limma differential selection analysis. | `SNPGenie` (Perl), `analyze_delta_selection.py`, `analyze_delta_limma.R` |
 | **`HAPLOTYPE`** | Reconstructs quasispecies haplotypes and estimates intra-host viral quasispecies diversity. | `CliqueSNV`, `VILOCA` |
 | **`REPORTING`** | Consolidates workflow metrics, computes percentage frequency tiers (`>=1%`, `0.1-1% candidate`, `<0.1% exploratory`), and outputs publication-ready plots & haplotype network summaries. With `--liftover_tsv`, the variant summary table is also written with `ref_contig`, `ref_pos`, `ref_end` and `ref_status` columns. | `generate_variant_plots.py`, `append_ref_coords.py`, `build_haplotype_tables.py`, `summarize_linked_mutations.py`, `plot_haplotypes.py`, MultiQC |
-| **`STOCK_REFERENCE`** | Builds a per-stock reference from a de novo consensus: orients it against the lab reference, names and indexes the contig, transfers the lab annotation, checks the transfer against the reference as a control, maps every position back to the lab reference, moves a primer scheme onto the stock when one is given, and writes one report per stock. Run through `-entry BUILD_STOCK_REFERENCE`, not as part of the main DAG. | `samtools faidx`, `Liftoff`, `minimap2`, `check_lifted_annotation.py`, `build_liftover_table.py`, `liftover_bed.py`, `summarize_stock_reference.py` |
+| **`STOCK_REFERENCE`** | Builds a per-stock reference from a de novo consensus: orients it against the lab reference, names and indexes the contig, transfers the lab annotation, checks the transfer against the reference as a control, maps every position back to the lab reference, moves a primer scheme onto the stock when one is given, checks the stock's reads for purity when they are given (`STOCK_PURITY`: mapping to the stock and to the reference pool, poly-G and adapter reads counted and set aside, Kraken2 on the rest), and writes one report per stock. Run through `-entry BUILD_STOCK_REFERENCE`, not as part of the main DAG. | `samtools faidx`, `Liftoff`, `minimap2`, `check_lifted_annotation.py`, `build_liftover_table.py`, `liftover_bed.py`, `summarize_stock_reference.py`, `bwa mem`, `samtools`, `Kraken2`, `summarize_purity.py` |
 | **`scripts/run_stock_workflow.sh`** | A launcher, not a subworkflow. Chains Stage A, `BUILD_STOCK_REFERENCE` and the main workflow for one stock as three separate Nextflow runs joined by files. Stage A is nf-core/viralmetagenome 1.2.0, run unchanged and optional. | `nextflow`, `nf-core/viralmetagenome` |
 
 ---

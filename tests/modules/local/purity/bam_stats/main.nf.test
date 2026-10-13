@@ -1,0 +1,102 @@
+nextflow_process {
+
+    name "Test Process PURITY_BAM_STATS"
+    script "modules/local/purity/bam_stats/main.nf"
+    process "PURITY_BAM_STATS"
+
+    test("purity_bam_stats - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'purity' ],
+                    file("${projectDir}/tests/data/purity.test.bam", checkIfExists: true),
+                    file("${projectDir}/tests/data/purity.test.bam.bai", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.counts[0][1]).exists()
+            assert path(process.out.kinds[0][1]).exists()
+            assert path(process.out.flagstat[0][1]).exists()
+            assert path(process.out.unmapped[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    // tests/data/purity.test.bam holds, in order of the records:
+    //   refA: 4 reads at MAPQ 60 and 2 at MAPQ 0
+    //   refB: 2 reads at MAPQ 30
+    //   a secondary alignment on refB and a supplementary one on refA (neither is a read)
+    //   5 reads that did not map: 3 plain, 1 poly-G and 1 with an Illumina adapter
+    // samtools idxstats would count the secondary and supplementary records too (refA 7, refB 3),
+    // which is why the module does not use it for the counts.
+    test("purity_bam_stats - counts each read once, and the reads that did not map") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'purity' ],
+                    file("${projectDir}/tests/data/purity.test.bam", checkIfExists: true),
+                    file("${projectDir}/tests/data/purity.test.bam.bai", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def rows = path(process.out.counts[0][1]).readLines().collect { it.split('\t') as List }
+            assert rows[0] == ['contig', 'length', 'mapped', 'mapq0']
+            assert rows[1] == ['refA', '1000', '6', '2']
+            assert rows[2] == ['refB', '800', '2', '0']
+            assert rows[3] == ['*', '0', '5', '0']
+            assert rows.size() == 4
+
+            // The reads that did not map are counted by kind, and the poly-G and adapter reads
+            // are left out of the FASTQ that goes on to Kraken2.
+            def kinds = path(process.out.kinds[0][1]).readLines().collect { it.split('\t') as List }
+            assert kinds == [['kind', 'reads'], ['total', '5'], ['polyg', '1'], ['adapter', '1']]
+            def fastq = path(process.out.unmapped[0][1]).linesGzip
+            assert fastq.size() == 12
+            assert fastq.findAll { it.startsWith('@u') } == ['@u1', '@u2', '@u3']
+
+            assert path(process.out.flagstat[0][1]).text.contains('in total')
+        }
+
+    }
+
+    test("purity_bam_stats - a BAM with no unmapped reads has an empty FASTQ and a zero in the last row") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.test.bam", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.bam.bai", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def rows = path(process.out.counts[0][1]).readLines().collect { it.split('\t') as List }
+            assert rows[-1][0] == '*'
+            assert rows[-1][2] == '0'
+            assert path(process.out.unmapped[0][1]).linesGzip.size() == 0
+            assert path(process.out.kinds[0][1]).readLines().collect { it.split('\t') as List } ==
+                [['kind', 'reads'], ['total', '0'], ['polyg', '0'], ['adapter', '0']]
+        }
+
+    }
+
+}

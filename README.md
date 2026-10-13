@@ -619,6 +619,11 @@ If you use the `SELECTION` subworkflow, please cite SNPGenie in addition to this
 > natural selection using pooled next-generation sequencing data. *Bioinformatics*
 > **31**(22):3709–3711. doi:[10.1093/bioinformatics/btv449](https://doi.org/10.1093/bioinformatics/btv449)
 
+If you use the stock purity check with a Kraken2 database, please cite Kraken 2 as well:
+
+> Wood DE, Lu J, Langmead B (2019). Improved metagenomic analysis with Kraken 2. *Genome Biology*
+> **20**:257. doi:[10.1186/s13059-019-1891-0](https://doi.org/10.1186/s13059-019-1891-0)
+
 ---
 
 ### Contact & Maintainer

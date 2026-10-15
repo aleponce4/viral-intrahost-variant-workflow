@@ -129,8 +129,10 @@ nextflow_workflow {
 
     }
 
+    // The fixture reads all map to the fixture stock, so nothing is left to classify and the
+    // module writes an empty report without calling Kraken2. That still exercises the part that
+    // matters here: the database reports what it holds, and that reaches the summary.
     test("stock_purity - Kraken2 runs on the reads that did not map when a database is given") {
-        options "-stub"
 
         when {
             params {
@@ -157,6 +159,11 @@ nextflow_workflow {
         then {
             assert workflow.success
             assert workflow.trace.tasks().collect { it.name }.any { it.contains('KRAKEN2_CLASSIFY') }
+            // The stub database reports itself, so the summary can say what was searched.
+            def lines = path(workflow.out.tsv[0][1]).readLines()
+            def row = [lines[0].split('	'), lines[1].split('	')].transpose().collectEntries()
+            assert row.kraken_database == 'kraken2_db.test'
+            assert row.kraken_domains == 'Bacteria; Viruses; Eukaryota'
         }
 
     }

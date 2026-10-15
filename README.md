@@ -302,15 +302,9 @@ under two minutes on a real stock.
   (poly-G, where the instrument saw no signal) and reads that carry an Illumina adapter (TruSeq or
   Nextera) are counted and set aside before Kraken2. Left in, the poly-G reads were classified as a
   phage and made up 0.55% of all reads in our test. Set aside, 22 reads were left in that call.
-- **Kraken2 database.** A directory or a `.tar.gz`. The step needs at least as much memory as the
-  database is large. `k2_viral` is 0.5 GB and finds viruses, which is what the purity question
-  asks. Host reads stay unclassified, and a larger stock database does not change that: every
-  prebuilt Kraken2 index except the very large `core_nt` and `nt` collections holds human as its
-  only animal, so a non-human host has nothing to match. Kraken2 also matches exact 35-mers by
-  default, so a database of other mammals will not reach a host tens of millions of years away
-  either. Labelling a non-human host means putting that host's own genome in a custom database.
-  A high unclassified fraction here means no known virus is hiding in those reads, which is an
-  answer rather than a gap.
+- **Kraken2 database.** A directory or a `.tar.gz`. See [Choosing a Kraken2 database](#choosing-a-kraken2-database)
+  below. The report names the database and lists the domains it held, read from the `inspect.txt`
+  that ships with it, so a large unclassified share can be read for what it is.
 - **A flag says where to look.** It is not a verdict. The thresholds can be changed with
   `ext.args` on `PURITY_SUMMARIZE` (`--min-mapped`, `--flag-fraction`, `--min-reads`).
 - **Checked with a positive control.** Simulated reads from two other genomes were added to real
@@ -319,6 +313,64 @@ under two minutes on a real stock.
   the stock reference almost as well as the stock's own reads, so only the pool step sees it.
 - **Limit.** It samples the first reads of the file. That is fine for the usual random order of a
   library. If your FASTQ is sorted in some way, shuffle or subsample it first.
+
+### Choosing a Kraken2 database
+
+Kraken2 can only name what its database holds. Everything else is counted as unclassified, which
+is not the same as nothing being there. The purity report says which domains the database held, so
+the number can be read correctly either way.
+
+Kraken2 loads `hash.k2d` into memory in full, so the index size is the memory requirement.
+`KRAKEN2_CLASSIFY` refuses to start when it was given less, rather than dying partway.
+
+| Database | Download | Index and memory | Names | Where it runs |
+|---|---|---|---|---|
+| Viral | 0.5 GB | 0.6 GB | viruses | anywhere, the default label is enough |
+| Standard-8 | 5.5 GB | 7.5 GB | the above plus bacteria, archaea, human, plasmids, vectors | a workstation |
+| Standard-16 | 11.2 GB | 14.9 GB | the same, with more sensitivity | a workstation with 16 GB free |
+| PlusPF-16 | 11.2 GB | 14.9 GB | the above plus protozoa and fungi | a workstation with 16 GB free |
+| PlusPF, full | 79.8 GB | 103.4 GB | the same, at full sensitivity | a cluster node |
+| core_nt | 183 GB | 238.2 GB | broad GenBank, including many eukaryotes | a large cluster node |
+
+Sizes are from the [Kraken 2 index collection](https://benlangmead.github.io/aws-indexes/k2);
+check it for the current release.
+
+**Which to use.** `PlusPF-16` covers the contamination classes a cell culture or a clinical sample
+is likely to carry, and fits a workstation. The capped indexes drop minimizers to reach their size
+target, so they trade sensitivity for fitting in memory. For a one-off characterisation on a
+cluster, the full `PlusPF` is the better answer. The viral database stays useful for quick
+iteration, because it is small and fast.
+
+**Host cells are a special case.** No prebuilt index except `core_nt` and `nt` holds a non-human
+animal, and Kraken2's exact 35-mer matching does not reach a host that is tens of millions of years
+from one that is in the database. A primate line such as Vero shares enough with the human genome
+for part of its reads to be named, while a rodent line such as BHK will not be. To account for host
+reads properly, build a small custom database holding the viral library and that cell line's own
+genome. A lab that uses the same two or three lines builds this once.
+
+**Raising the memory.** `conf/kraken2_large_db.example.config` sets the step to 18 GB, which suits
+the 16 GB capped indexes:
+
+```bash
+nextflow run . -entry BUILD_STOCK_REFERENCE -profile docker   -c conf/kraken2_large_db.example.config   --purity_kraken2_db k2_pluspf_16gb/ ...
+```
+
+**On a cluster.** The `slurm` profile runs the pipeline through SLURM with Singularity. A full-size
+database needs the memory directive to match:
+
+```groovy
+process {
+    withName: KRAKEN2_CLASSIFY {
+        cpus   = 16
+        memory = 120.GB   // full PlusPF; its index is 103.4 GB
+        time   = 8.h
+    }
+}
+```
+
+Extract the archive once and pass the directory rather than the `.tar.gz`. The module untars a
+`.tar.gz` into the task's work directory every run, which costs the archive plus the extracted
+index in transient disk each time.
 
 ### Amplicon stocks
 
@@ -440,7 +492,7 @@ sampleB,data/sampleB_1.fastq.gz,data/sampleB_2.fastq.gz,infected
 | `--lofreq_enable_baq` | `false` | Enable LoFreq base alignment quality (BAQ) |
 | `--stock_reads_1`, `--stock_reads_2` | `null` | The stock's paired reads. With `-entry BUILD_STOCK_REFERENCE` they turn on the purity check |
 | `--purity_pool` | `null` | Related genomes (a multi-FASTA) the stock's reads are also mapped to, to see a second strain |
-| `--purity_kraken2_db` | `null` | A Kraken2 database (directory or `.tar.gz`) for the reads that do not map to the stock. A viral database leaves a non-human host unclassified; see [Purity check](#purity-check) |
+| `--purity_kraken2_db` | `null` | A Kraken2 database (directory or `.tar.gz`) for the reads that do not map to the stock. See [Choosing a Kraken2 database](#choosing-a-kraken2-database) |
 | `--purity_pairs` | `1000000` | The purity check uses the first N read pairs |
 | `--liftover_tsv` | `null` | `qc/<stock>.liftover.tsv` from `BUILD_STOCK_REFERENCE`; adds lab-reference coordinates to annotated VCFs and the variant table |
 | `--viloca_window` | `150` | Window size for VILOCA local quasispecies reconstruction |

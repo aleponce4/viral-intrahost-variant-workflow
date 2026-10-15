@@ -1,0 +1,5 @@
+100.00	1000	0	R	1	root
+ 60.00	600	5	D	2	  Bacteria
+ 30.00	300	2	D	10239	  Viruses
+ 10.00	100	1	D	2759	  Eukaryota
+ 10.00	100	100	S	9606	        Homo sapiens

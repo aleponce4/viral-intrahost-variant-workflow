@@ -19,6 +19,7 @@ nextflow_process {
         then {
             assert process.success
             assert path(process.out.report[0][1]).exists()
+            assert path(process.out.db_info[0][1]).exists()
             assert path(process.out.versions[0]).exists()
         }
 
@@ -57,6 +58,49 @@ nextflow_process {
 
         then {
             assert process.failed
+        }
+
+    }
+
+    // Every Kraken2 download ships inspect.txt. Its domain rows are what the report needs in
+    // order to say whether an unclassified read had any chance of being named.
+    test("kraken2_classify - records the database name and the domains it holds") {
+
+        when {
+            process {
+                """
+                input[0] = [ [ id: 'stock-test' ], file("${projectDir}/tests/data/empty.test.fastq.gz", checkIfExists: true) ]
+                input[1] = file("${projectDir}/tests/data/kraken2_db.test", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def rows = path(process.out.db_info[0][1]).readLines().collect { it.split('	') as List }
+            assert rows[0] == ['database', 'kraken2_db.test']
+            assert rows.findAll { it[0] == 'domain' }.collect { it[1] } == ['Bacteria', 'Viruses', 'Eukaryota']
+        }
+
+    }
+
+    // Kraken2 loads hash.k2d in full. Being told that up front beats dying partway through.
+    test("kraken2_classify - refuses to start when the memory is below the index size") {
+        config "./tiny_memory.config"
+
+        when {
+            process {
+                """
+                input[0] = [ [ id: 'stock-test' ], file("${projectDir}/tests/data/empty.test.fastq.gz", checkIfExists: true) ]
+                input[1] = file("${projectDir}/tests/data/kraken2_db.test", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+            assert process.errorReport.contains('needs')
+            assert process.errorReport.contains('KRAKEN2_CLASSIFY')
         }
 
     }

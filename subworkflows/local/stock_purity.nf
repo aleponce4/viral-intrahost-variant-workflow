@@ -81,10 +81,12 @@ workflow STOCK_PURITY {
 
     // 3. What the reads that did not map are. Poly-G and adapter reads were set aside in the
     //    stats step, so Kraken2 sees only reads that nothing explains yet.
-    ch_kraken_report = Channel.value(file("${projectDir}/assets/NO_FILE"))
+    ch_kraken_report  = Channel.value(file("${projectDir}/assets/NO_FILE"))
+    ch_kraken_db_info = Channel.value(file("${projectDir}/assets/NO_FILE"))
     if (params.purity_kraken2_db) {
         KRAKEN2_CLASSIFY(PURITY_STOCK_STATS.out.unmapped, ch_kraken_db)
-        ch_kraken_report = KRAKEN2_CLASSIFY.out.report.map { meta, report -> report }
+        ch_kraken_report  = KRAKEN2_CLASSIFY.out.report.map { meta, report -> report }
+        ch_kraken_db_info = KRAKEN2_CLASSIFY.out.db_info.map { meta, info -> info }
         ch_versions = ch_versions.mix(KRAKEN2_CLASSIFY.out.versions)
     }
 
@@ -94,7 +96,8 @@ workflow STOCK_PURITY {
             .join(PURITY_STOCK_STATS.out.kinds)
             .map { meta, counts, kinds -> [ [ id: meta.id.replaceFirst(/\.vs_stock$/, '') ], counts, kinds ] },
         ch_pool_counts,
-        ch_kraken_report
+        ch_kraken_report,
+        ch_kraken_db_info
     )
     ch_versions = ch_versions.mix(PURITY_SUMMARIZE.out.versions)
 

@@ -72,11 +72,13 @@ class Workdir(unittest.TestCase):
     def run_script(self, *args):
         return subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True)
 
-    def summarise(self, stock=STOCK, pool=None, kraken=None, kinds=None, extra=()):
+    def summarise(self, stock=STOCK, pool=None, kraken=None, kinds=None, db_info=None, extra=()):
         args = ['--stock-name', 'S', '--stock-counts', self.write('stock.tsv', stock),
                 '--output-tsv', self.path('out.tsv'), '--output-md', self.path('out.md')]
         if kinds is not None:
             args += ['--unmapped-kinds', self.write('kinds.tsv', kinds)]
+        if db_info is not None:
+            args += ['--kraken-db-info', self.write('dbinfo.tsv', db_info)]
         if pool is not None:
             args += ['--pool-counts', self.write('pool.tsv', pool)]
         if kraken is not None:
@@ -418,6 +420,48 @@ class TestErrors(Workdir):
         self.summarise(stock="bad")
         self.assertFalse(os.path.exists(self.path('out.tsv')))
         self.assertFalse(os.path.exists(self.path('out.md')))
+
+
+class TestDatabaseScope(Workdir):
+    """A Kraken2 database can only name what it holds, so the report has to say what that was."""
+
+    DB_INFO = 'database\tk2_pluspf_16gb\ndomain\tBacteria\ndomain\tViruses\n'
+
+    def test_database_and_domains_are_recorded(self):
+        _, row, _ = self.summarise(kraken=KRAKEN, db_info=self.DB_INFO)
+        self.assertEqual(row['kraken_database'], 'k2_pluspf_16gb')
+        self.assertEqual(row['kraken_domains'], 'Bacteria; Viruses')
+
+    def test_markdown_says_what_the_database_could_name(self):
+        _, _, md = self.summarise(kraken=KRAKEN, db_info=self.DB_INFO)
+        self.assertIn('The database `k2_pluspf_16gb` holds Bacteria, Viruses.', md)
+        self.assertIn('cannot be named and are counted as unclassified', md)
+
+    def test_without_db_info_the_columns_are_NA_and_nothing_is_claimed(self):
+        _, row, md = self.summarise(kraken=KRAKEN)
+        self.assertEqual(row['kraken_database'], 'NA')
+        self.assertEqual(row['kraken_domains'], 'NA')
+        self.assertNotIn('holds Bacteria', md)
+
+    def test_a_database_that_lists_no_domain_says_so(self):
+        _, row, md = self.summarise(kraken=KRAKEN, db_info='database' + chr(9) + 'mystery' + chr(10))
+        self.assertEqual(row['kraken_database'], 'mystery')
+        self.assertEqual(row['kraken_domains'], 'NA')
+        self.assertIn('did not say what it holds', md)
+
+    def test_db_info_is_reported_even_when_kraken_found_nothing(self):
+        empty = ' 100.00' + chr(9) + '0' + chr(9) + '0' + chr(9) + 'U' + chr(9) + '0' + chr(9) + 'unclassified' + chr(10)
+        _, row, md = self.summarise(kraken=empty, db_info=self.DB_INFO)
+        self.assertEqual(row['kraken_database'], 'k2_pluspf_16gb')
+        self.assertIn('There were no reads left to classify.', md)
+        self.assertIn('holds Bacteria, Viruses', md)
+
+    def test_a_missing_db_info_file_fails(self):
+        result = self.run_script('--stock-name', 'S', '--stock-counts', self.write('s.tsv', STOCK),
+                                 '--kraken-db-info', self.path('none.tsv'),
+                                 '--output-tsv', self.path('o.tsv'), '--output-md', self.path('o.md'))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('file not found', result.stderr)
 
 
 if __name__ == '__main__':

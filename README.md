@@ -270,6 +270,39 @@ Then run the pipeline once per stock, pointing `--fasta` and `--gff` at those tw
 files. Use `qc/<stock>.liftover.tsv` to put results from different stocks on one
 coordinate system.
 
+### Amplicon runs: what to check
+
+With `--protocol amplicon` and a `--primer_bed`, `ivar trim` removes primer sequence from the
+reads that carry it. Two outputs say whether that worked on your library.
+
+**`Ivar/<sample>/<sample>.ivar_trim.log`** holds the counts iVar reports:
+
+```
+Trimmed primers from 24.9% (333394) of reads.
+20.28% (271464) of reads were quality trimmed below the minimum length of 30 bp and were not written to file.
+61.25% (820004) of reads started outside of primer regions. Since the -e flag was given, these reads were written to file.
+```
+
+The third line is the one to read first. In a library whose reads begin at primer sites, almost
+none start outside a primer region. A high number means the amplicons were fragmented before
+sequencing, which is normal for a tagmentation prep. The pipeline passes `-e` to `ivar trim`, so
+those reads are kept. Without it they would be discarded, and on the library above that would
+have thrown away 820,000 reads.
+
+The second line is worth watching too. It is read loss from quality trimming at
+`--ivar_min_bq`, and a fifth of a library is not unusual at the default of 30.
+
+**`LoFreq/<sample>/<sample>.primer_check.tsv`** marks every call that falls inside a primer
+interval, names the primer, and gives the call's depth against the genome's median. The bases
+under a primer come partly from the primer's own sequence, so a mismatch between a primer and
+the sample can surface as a low-frequency variant.
+
+On one real library, 12 of 64 calls sat under a primer. The four at 1% or more were all at
+positions far below the genome's mean depth, and three of them fell within 11 bases of one
+primer junction. None of that proves they are artefacts, which is why the file marks them rather
+than dropping them. Check a marked call against an untrimmed alignment, or against a second
+primer scheme, before believing it.
+
 ### Purity check
 
 A stock should hold one virus. Give `BUILD_STOCK_REFERENCE` the stock's reads and it adds a
@@ -613,11 +646,14 @@ results/
 │       ├── variants.filtered.vcf.gz.tbi
 │       ├── qc_stats.txt
 │       ├── depth_check.tsv
-│       └── depth_check.txt
+│       ├── depth_check.txt
+│       ├── primer_check.tsv      (amplicon only)
+│       └── primer_check.txt      (amplicon only)
 ├── Ivar/
 │   └── <sample>/
 │       ├── variants.tsv
-│       └── consensus.fa
+│       ├── consensus.fa
+│       └── ivar_trim.log         (amplicon only)
 ├── Annotated_variants/
 │   ├── LoFreq/
 │   └── Ivar/

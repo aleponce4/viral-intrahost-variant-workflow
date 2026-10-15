@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Variant calls that sit under a primer are marked (`PRIMER_CALL_CHECK`)**: with a `--primer_bed`,
+  every LoFreq call is checked against the primer intervals and
+  `LoFreq/<sample>/<sample>.primer_check.tsv` names the covering primer and gives the call's depth
+  against the genome's median. The bases under a primer come partly from the primer's own sequence,
+  so a mismatch between primer and sample can surface as a low-frequency variant. On a real amplicon
+  library 12 of 64 calls sat under a primer, and the four at 1% or more were all at depths far below
+  the genome mean, three of them within 11 bases of one primer junction. The file marks them; it
+  does not drop them.
+- **The `ivar trim` counts are published** (`Ivar/<sample>/<sample>.ivar_trim.log`): how many
+  reads were trimmed, how many began outside a primer region, and how many were dropped on quality.
+  The second of those says whether the library is primer-anchored or was fragmented after
+  amplification, which decides whether the `-e` flag is load-bearing. They were previously computed
+  and then left in the work directory.
+
+### Changed
+- **`IVAR_TRIM` explains why it passes `-e`, and sets `pipefail`**: `-e` keeps reads that do not
+  begin at a primer. Dropping them is right for a primer-anchored library and wrong for a fragmented
+  one, where it discarded 61% of the reads in a real case. The module now says so. `set -o pipefail`
+  is there because the log is captured through `tee`, whose exit code would otherwise hide a failure.
+
+### Added
 - **The purity report says what its Kraken2 database could have named**: `KRAKEN2_CLASSIFY` reads the
   `inspect.txt` that ships with every Kraken2 database and records the database name and the domains
   it holds. The report carries both, so a large unclassified share can be told apart from an absence

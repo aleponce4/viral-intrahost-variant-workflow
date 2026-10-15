@@ -15,6 +15,7 @@ include { VARIANT_CALLING        } from './subworkflows/variant_calling/main'
 include { ANNOTATION             } from './subworkflows/annotation/main'
 include { COVERAGE_QC            } from './subworkflows/coverage_qc/main'
 include { LOFREQ_DEPTH_CHECK     } from './modules/local/lofreq/depth_check/main'
+include { PRIMER_CALL_CHECK      } from './modules/local/primer/call_check/main'
 include { SELECTION              } from './subworkflows/local/selection'
 include { HAPLOTYPE              } from './subworkflows/local/haplotype'
 include { REPORTING              } from './subworkflows/reporting/main'
@@ -125,6 +126,13 @@ workflow {
         .map { id, meta, vcf, depth -> [ meta, vcf, depth ] }
     LOFREQ_DEPTH_CHECK(ch_lofreq_depth)
 
+    // 5c. In an amplicon run, mark the calls that sit under a primer. The bases there come
+    // partly from the primer's own sequence, so a mismatch between primer and sample can
+    // surface as a low-frequency variant. This marks them; it does not drop them.
+    if (params.primer_bed) {
+        PRIMER_CALL_CHECK(ch_lofreq_depth, file(params.primer_bed, checkIfExists: true))
+    }
+
     // 6. Selection Analysis (optional, --run_snpgenie)
     ch_snpgenie_vcfs = VARIANT_CALLING.out.lofreq_vcf
         .map { meta, vcf, tbi -> [ meta, vcf ] }
@@ -153,6 +161,7 @@ workflow {
         .mix(ANNOTATION.out.versions)
         .mix(COVERAGE_QC.out.versions)
         .mix(LOFREQ_DEPTH_CHECK.out.versions)
+        .mix(params.primer_bed ? PRIMER_CALL_CHECK.out.versions : Channel.empty())
         .mix(SELECTION.out.versions)
         .mix(HAPLOTYPE.out.versions)
 

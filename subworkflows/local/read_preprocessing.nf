@@ -20,9 +20,11 @@ workflow READ_PREPROCESSING {
 
     ch_bams = SAMTOOLS_SORT.out.bam
 
+    ch_trim_log = Channel.empty()
     if (params.protocol == 'amplicon') {
         IVAR_TRIM(SAMTOOLS_SORT.out.bam, file(params.primer_bed, checkIfExists: true))
         ch_bams = IVAR_TRIM.out.bam
+        ch_trim_log = IVAR_TRIM.out.log
         ch_versions = ch_versions.mix(IVAR_TRIM.out.versions)
     }
 
@@ -39,6 +41,7 @@ workflow READ_PREPROCESSING {
     bams        = ch_bams                  // [ meta, bam, bai ]
     fastqc_zip  = FASTQC.out.zip
     bwa_log     = BWA_MEM.out.log
+    trim_log    = ch_trim_log              // only with --protocol amplicon
     stats       = SAMTOOLS_STATS.out.stats
     versions    = ch_versions
 }

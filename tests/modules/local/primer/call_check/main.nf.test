@@ -1,0 +1,87 @@
+nextflow_process {
+
+    name "Test Process PRIMER_CALL_CHECK"
+    script "modules/local/primer/call_check/main.nf"
+    process "PRIMER_CALL_CHECK"
+
+    test("primer_call_check - stub") {
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.capped.test.vcf", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.depth.tsv", checkIfExists: true)
+                ]
+                input[1] = file("${projectDir}/tests/data/primers.test.bed", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.tsv[0][1]).exists()
+            assert path(process.out.summary[0][1]).exists()
+            assert path(process.out.versions[0]).exists()
+        }
+
+    }
+
+    // The fixture VCF calls positions 20 and 100. primers.test.bed covers 20 and not 100,
+    // so exactly one of the two is marked.
+    test("primer_call_check - marks the call that sits under a primer") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.capped.test.vcf", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.depth.tsv", checkIfExists: true)
+                ]
+                input[1] = file("${projectDir}/tests/data/primers.test.bed", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def rows = path(process.out.tsv[0][1]).readLines().collect { it.split('\t') as List }
+            assert rows[0] == ['chrom', 'pos', 'ref', 'alt', 'vaf', 'depth', 'under_primer', 'primers', 'depth_vs_median']
+            assert rows.size() == 3
+            assert rows[1][1] == '20' && rows[1][6] == 'yes'
+            assert rows[2][1] == '100' && rows[2][6] == 'no'
+            assert path(process.out.summary[0][1]).text.contains('2 call(s): 1 under a primer.')
+        }
+
+    }
+
+    test("primer_call_check - ext.args reaches the script") {
+        config "./min_vaf.config"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id: 'sampleA' ],
+                    file("${projectDir}/tests/data/sampleA.capped.test.vcf", checkIfExists: true),
+                    file("${projectDir}/tests/data/sampleA.test.depth.tsv", checkIfExists: true)
+                ]
+                input[1] = file("${projectDir}/tests/data/primers.test.bed", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            // The call under a primer is at 10%, so --min-vaf 0.5 leaves nothing to list.
+            def summary = path(process.out.summary[0][1]).text
+            assert summary.contains('2 call(s): 1 under a primer.')
+            assert !summary.contains('Under a primer at a VAF of')
+        }
+
+    }
+
+}

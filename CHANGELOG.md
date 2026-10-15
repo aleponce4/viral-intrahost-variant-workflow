@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The purity report says what its Kraken2 database could have named**: `KRAKEN2_CLASSIFY` reads the
+  `inspect.txt` that ships with every Kraken2 database and records the database name and the domains
+  it holds. The report carries both, so a large unclassified share can be told apart from an absence
+  of contamination. It was previously impossible to tell from the report whether a read was
+  unclassified because nothing matched or because the database never held that kind of organism.
+- **`KRAKEN2_CLASSIFY` checks its memory before loading**: Kraken2 loads `hash.k2d` in full, so the
+  step now compares that file's size with the memory it was given and refuses to start when it is
+  short, naming the config to change. `conf/kraken2_large_db.example.config` is a worked example.
+- **A README section on choosing a Kraken2 database**: download size, memory, what each names, and
+  which need a cluster, with the cell-culture host case called out.
+
 ### Changed
 - **The purity check's Kraken2 guidance says what a database can and cannot name**: a viral database
   answers the purity question and leaves host reads unclassified. A larger stock database does not

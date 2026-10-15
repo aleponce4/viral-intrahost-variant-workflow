@@ -10,6 +10,7 @@ process PURITY_SUMMARIZE {
     // because the placeholder has the same name every time and two of them would collide.
     path pool_counts, stageAs: 'pool/*'
     path kraken_report, stageAs: 'kraken/*'
+    path kraken_db_info, stageAs: 'kraken_db/*'
 
     output:
     tuple val(meta), path("${meta.id}.purity.tsv"), emit: tsv
@@ -26,6 +27,7 @@ process PURITY_SUMMARIZE {
     def given  = { f -> f.toString().tokenize('/').last() != 'NO_FILE' }
     def pool   = given(pool_counts) ? "--pool-counts ${pool_counts}" : ''
     def kraken = given(kraken_report) ? "--kraken-report ${kraken_report}" : ''
+    def dbinfo = given(kraken_db_info) ? "--kraken-db-info ${kraken_db_info}" : ''
     """
     python3 \$(which summarize_purity.py || echo ${projectDir}/bin/summarize_purity.py) \\
         --stock-name ${prefix} \\
@@ -33,6 +35,7 @@ process PURITY_SUMMARIZE {
         --unmapped-kinds ${unmapped_kinds} \\
         ${pool} \\
         ${kraken} \\
+        ${dbinfo} \\
         --output-tsv ${prefix}.purity.tsv \\
         --output-md ${prefix}.purity.md \\
         ${args}

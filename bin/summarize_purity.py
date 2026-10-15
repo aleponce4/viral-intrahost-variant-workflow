@@ -11,8 +11,9 @@ A stock is meant to hold one virus. This puts three numbers beside each other:
      reference pool). A stock of one virus puts them on the genome closest to it, and
      almost none on the rest. A second genome with a real share points to another
      strain in the tube. Kraken2 cannot tell close strains apart. Mapping can.
-  3. What the reads left over are, from a Kraken2 report. This finds other viruses, and
-     bacteria or host when the database holds them.
+  3. What the reads left over are, from a Kraken2 report. A Kraken2 database can only name
+     what is in it, so the report says which domains it held. Reads from anything else stay
+     unclassified, which is not the same as nothing being there.
 
 It reports. It does not decide. A flag says where to look. A stock can be sound and
 still carry a flag, for example when the pool holds two strains that are close to each
@@ -33,9 +34,9 @@ __version__ = "2.0.0"
 COLUMNS = ["stock", "reads_sampled", "reads_mapped_to_stock", "fraction_mapped_to_stock",
            "reads_unmapped_to_stock", "unmapped_polyg", "unmapped_adapter",
            "fraction_unexplained", "pool_top_genome", "pool_top_share",
-           "pool_other_max_genome", "pool_other_max_share", "kraken_reads",
-           "kraken_unclassified_fraction", "kraken_top_species", "kraken_top_species_reads",
-           "flags"]
+           "pool_other_max_genome", "pool_other_max_share", "kraken_database",
+           "kraken_domains", "kraken_reads", "kraken_unclassified_fraction",
+           "kraken_top_species", "kraken_top_species_reads", "flags"]
 
 
 def read_counts(path):
@@ -85,6 +86,21 @@ def read_kinds(path):
     return kinds
 
 
+def read_db_info(path):
+    """Return (database name, [domain, ...]) from the file KRAKEN2_CLASSIFY wrote."""
+    name, domains = "NA", []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            fields = line.rstrip("\r\n").split("\t")
+            if len(fields) < 2:
+                continue
+            if fields[0] == "database":
+                name = fields[1]
+            elif fields[0] == "domain":
+                domains.append(fields[1])
+    return name, domains
+
+
 def read_kraken(path):
     """Parse a Kraken2 report. Return dict with total, unclassified, domains, species."""
     unclassified, root, domains, species = 0, 0, [], []
@@ -129,6 +145,7 @@ def main():
                         help="How many of the reads that did not map are poly-G or adapter reads")
     parser.add_argument("--pool-counts", help="Counts of the same reads mapped to the reference pool")
     parser.add_argument("--kraken-report", help="Kraken2 report of the reads left after the artefacts")
+    parser.add_argument("--kraken-db-info", help="What the Kraken2 database held, from KRAKEN2_CLASSIFY")
     parser.add_argument("--min-mapped", type=float, default=0.90,
                         help="Flag when a smaller fraction of the reads maps to the stock or is a "
                              "sequencing artefact. Default: 0.90")
@@ -152,7 +169,8 @@ def main():
     if args.min_reads < 1:
         print("ERROR: --min-reads must be at least 1", file=sys.stderr)
         sys.exit(1)
-    for path in (args.stock_counts, args.unmapped_kinds, args.pool_counts, args.kraken_report):
+    for path in (args.stock_counts, args.unmapped_kinds, args.pool_counts, args.kraken_report,
+                 args.kraken_db_info):
         if path and not os.path.exists(path):
             print(f"ERROR: file not found: {path}", file=sys.stderr)
             sys.exit(1)
@@ -162,6 +180,7 @@ def main():
         kinds = read_kinds(args.unmapped_kinds) if args.unmapped_kinds else None
         pool_rows = read_counts(args.pool_counts)[0] if args.pool_counts else None
         kraken = read_kraken(args.kraken_report) if args.kraken_report else None
+        db_name, db_domains = read_db_info(args.kraken_db_info) if args.kraken_db_info else ("NA", [])
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
@@ -235,6 +254,8 @@ def main():
         "pool_top_share": top_share,
         "pool_other_max_genome": other_name,
         "pool_other_max_share": other_share,
+        "kraken_database": db_name,
+        "kraken_domains": "; ".join(db_domains) if db_domains else "NA",
         "kraken_reads": kraken["total"] if kraken is not None else "NA",
         "kraken_unclassified_fraction": k_unclassified,
         "kraken_top_species": k_top,
@@ -296,6 +317,13 @@ def main():
                 md += ["| Top species | Reads | Share of all reads |", "| :--- | ---: | ---: |"]
                 md += [f"| {n} | {c:,} | {pct(c, total)} |" for n, c in kraken["species"][:5]]
                 md.append("")
+        if db_domains:
+            md += [f"The database `{db_name}` holds {', '.join(db_domains)}. Reads from anything "
+                   "else cannot be named and are counted as unclassified, so a large unclassified "
+                   "share here does not mean those reads are nothing.", ""]
+        elif args.kraken_db_info:
+            md += [f"The database `{db_name}` did not say what it holds, so what the unclassified "
+                   "reads could have been named is unknown.", ""]
 
     md += ["### Flags", ""]
     md += ([f"- {f}" for f in flags] if flags else ["Nothing flagged."])
